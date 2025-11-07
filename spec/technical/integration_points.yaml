@@ -1,0 +1,352 @@
+This detailed specification document expands upon the provided PRD, structuring it into actionable technical requirements and including a YAML-formatted section for external system connections.
+
+---
+
+# Forex Trading Bot - Detailed Specification Document
+
+## 1. Introduction
+This document serves as a comprehensive technical specification for the Forex Trading Bot, building upon the requirements outlined in the Product Requirements Document (PRD). It details the functional and non-functional requirements, architectural choices, and external system integrations necessary for the development of a sophisticated, automated Forex trading platform.
+
+## 2. Functional Requirements
+
+### 2.1. User Dashboard
+*   **FR.2.1.1:** Real-time display of connected account balance, equity, and margin levels.
+*   **FR.2.1.2:** List active strategies with their current status (running, paused, stopped), associated pairs, and real-time P&L.
+*   **FR.2.1.3:** Graphical and numeric display of P&L across various timeframes (daily, weekly, monthly, yearly, all-time).
+*   **FR.2.1.4:** Table view of all open positions (symbol, entry price, current price, P&L, SL/TP) and pending orders (type, price, symbol, expiry).
+*   **FR.2.1.5:** Filterable and sortable historic trade log including execution details, P&L, and strategy ID. Export options (CSV, PDF).
+*   **FR.2.1.6:** Performance metrics calculation and display:
+    *   Drawdown (max, current)
+    *   Winning rate
+    *   Profit factor
+    *   Sharpe ratio (configurable period)
+    *   R-squared
+    *   Calmar ratio
+*   **FR.2.1.7:** Customizable dashboard widgets for personalizing content.
+
+### 2.2. Strategy Builder
+
+#### 2.2.1. Visual Strategy Builder
+*   **FR.2.2.1.1:** Drag-and-drop interface for constructing rule-based strategies using pre-defined blocks.
+*   **FR.2.2.1.2:** Support for a comprehensive library of technical indicators: Moving Averages (SMA, EMA, WMA, SMMA), RSI, MACD, Bollinger Bands, Stochastic, ATR, Ichimoku, ADX, Williams %R, CCI, DeMarker, Force Index, Momentum, OBV, Parabolic SAR, Standard Deviation, TRIX, Volume.
+*   **FR.2.2.1.3:** Logical operators (AND, OR, NOT) and comparison operators (>, <, =, >=, <=) for combining conditions.
+*   **FR.2.2.1.4:** Conditions can be based on price action (e.g., candlestick patterns, support/resistance breaks) and indicator values/crossings.
+*   **FR.2.2.1.5:** Entry conditions (e.g., market order, limit order at specific price/level) and Exit conditions (e.g., reverse signal, time-based).
+*   **FR.2.2.1.6:** Parameterization of Stop Loss (absolute, percentage, ATR-based) and Take Profit (absolute, percentage, R-multiple).
+*   **FR.2.2.1.7:** Trailing Stop functionality (fixed points, percentage, ATR-based).
+*   **FR.2.2.1.8:** Position sizing rules: fixed lot, percentage of equity, risk-based on account balance, fixed dollar amount.
+*   **FR.2.2.1.9:** Timeframe selection for indicator calculation and condition evaluation (M1, M5, M15, M30, H1, H4, D1, W1, MN).
+*   **FR.2.2.1.10:** Strategy validation and syntax checking upon saving.
+
+#### 2.2.2. Code Editor
+*   **FR.2.2.2.1:** Integrated Development Environment (IDE) with syntax highlighting, auto-completion, and error checking for a Python-based Domain Specific Language (DSL).
+*   **FR.2.2.2.2:** DSL library includes functions for:
+    *   Accessing historical market data (OHLCV, tick data).
+    *   Accessing real-time market data.
+    *   Applying technical indicators.
+    *   Placing, modifying, and canceling orders.
+    *   Querying account information (balance, equity).
+    *   Logging custom events.
+*   **FR.2.2.2.3:** Live debugger allowing step-through execution and variable inspection in paper trading mode.
+*   **FR.2.2.2.4:** Integrated Git-based version control for strategy code.
+*   **FR.2.2.2.5:** Template repository for common strategy structures.
+
+### 2.3. Backtesting Engine
+*   **FR.2.3.1:** Execute strategies on historical data with configurable date ranges for all supported timeframes and tick data.
+*   **FR.2.3.2:** Adjustable backtesting parameters:
+    *   Initial capital.
+    *   Fixed spread or variable spread simulation.
+    *   Slippage simulation (fixed pip, percentage, random).
+    *   Commission per lot/trade.
+    *   Latency simulation.
+    *   Overnight swap simulation.
+*   **FR.2.3.3:** Generate detailed backtest reports including:
+    *   Equity curve chart.
+    *   Drawdown (max, historical absolute, relative).
+    *   Net profit / loss (absolute, percentage).
+    *   Total number of trades, wins, losses, breakeven trades.
+    *   Average profit/loss per trade.
+    *   Profit factor, Sharpe ratio, Sortino ratio.
+    *   Max consecutive wins/losses.
+    *   Detailed trade list (entry, exit, P&L, duration).
+*   **FR.2.3.4:** Optimization module for strategy parameters: brute force, genetic algorithms, walk-forward optimization.
+*   **FR.2.3.5:** Ability to save and compare multiple backtest reports.
+
+### 2.4. Live Trading Module
+*   **FR.2.4.1:** Secure, encrypted connection to multiple user-selected brokerage accounts.
+*   **FR.2.4.2:** Real-time, low-latency market data feed integration.
+*   **FR.2.4.3:** Direct execution of trade orders via broker APIs (market, limit, stop orders).
+*   **FR.2.4.4:** Robust error handling, order resubmission, and notification for failed orders.
+*   **FR.2.4.5:** Configurable live trading parameters:
+    *   Strategy start/stop times.
+    *   Max daily loss (currency, percentage).
+    *   Max open positions per strategy/account.
+    *   Trading hours per instrument.
+*   **FR.2.4.6:** "Paper Trading" (Demo Account) mode, mirroring live trading functionality but using simulated funds and a dedicated demo feed.
+*   **FR.2.4.7:** One-click manual override to close active positions or pause strategies.
+
+### 2.5. Risk Management
+*   **FR.2.5.1:** Global account-level stop-loss and take-profit functionality (close all positions if breached).
+*   **FR.2.5.2:** Maximum daily/weekly/monthly drawdown limit, triggering automatic pause of all strategies.
+*   **FR.2.5.3:** Limit on maximum concurrent open positions across all running strategies per account.
+*   **FR.2.5.4:** Position sizing based on a percentage of account equity, fixed dollar amount, or fixed percentage of maximum risk.
+*   **FR.2.5.5:** Trade size limits (min/max lots) configurable per instrument.
+*   **FR.2.5.6:** Emergency stop button to immediately close all open positions and pause all active strategies across an account.
+*   **FR.2.5.7:** Margin call notification and automated response options (e.g., close least profitable trade).
+
+### 2.6. Reporting & Analytics
+*   **FR.2.6.1:** Comprehensive performance reports (daily, weekly, monthly, custom ranges) exportable as PDF/CSV.
+*   **FR.2.6.2:** Detailed trade journal with entry/exit timestamps, prices, volumes, P&L, instrument, and associated strategy ID.
+*   **FR.2.6.3:** Customizable graphical charts to visualize:
+    *   Equity curve.
+    *   Drawdown periods.
+    *   Distribution of P&L per trade.
+    *   Performance by instrument.
+    *   Daily/monthly profit distribution.
+*   **FR.2.6.4:** API endpoint for programmatic access to historical trade data and performance metrics.
+
+### 2.7. Alerts & Notifications
+*   **FR.2.7.1:** User-configurable alerts for events:
+    *   Trade execution (open, close, modify).
+    *   Strategy status changes (start, stop, pause, error).
+    *   Account balance/equity changes (thresholds).
+    *   Drawdown limits reached.
+    *   Margin call proximity.
+    *   System errors or broker disconnection.
+    *   Economic news events affecting current trades.
+*   **FR.2.7.2:** Notification channels: mobile push notifications, email, SMS.
+
+---
+
+## 3. Non-Functional Requirements
+
+### 3.1. Performance
+*   **NFR.3.1.1 Latency:** Order execution latency (from signal generation to broker acknowledgment) ≤ 50ms.
+*   **NFR.3.1.2 Data Feed Latency:** Real-time market data feed update latency ≤ 100ms.
+*   **NFR.3.1.3 Backtesting Speed:** Average backtest completes a 1-year H1 data for a single pair in ≤ 5 seconds.
+*   **NFR.3.1.4 UI Responsiveness:** User interface loading times ≤ 2 seconds for fresh loads, and ≤ 500ms for subsequent interactions.
+
+### 3.2. Scalability
+*   **NFR.3.2.1 User Capacity:** Support for 100,000+ concurrent active strategies and 10,000+ concurrent users without performance degradation.
+*   **NFR.3.2.2 Data Volume:** Handle petabytes of historical tick data and rapidly growing trade log data.
+*   **NFR.3.2.3 Geographic Scale:** Ability to deploy services in multiple geographical regions for proximity to financial hubs.
+
+### 3.3. Security
+*   **NFR.3.3.1 Data Encryption:** All data in transit (TLS 1.2+) and at rest (AES-256) must be encrypted.
+*   **NFR.3.3.2 Authentication:** Multi-factor authentication (MFA) must be enforced for all user logins.
+*   **NFR.3.3.3 Authorization:** Role-based access control (RBAC) to system features and data.
+*   **NFR.3.3.4 Penetration Testing:** Annual third-party penetration testing and regular vulnerability scanning.
+*   **NFR.3.3.5 Compliance:** Adhere to GDPR, CCPA, and relevant financial data security standards.
+*   **NFR.3.3.6 Funds Protection:** The bot will never have direct access to user funds; only trading permissions via broker APIs.
+
+### 3.4. Reliability & Availability
+*   **NFR.3.4.1 Uptime:** Platform uptime ≥ 99.99% for core trading services.
+*   **NFR.3.4.2 Disaster Recovery:** RTO (Recovery Time Objective) ≤ 4 hours, RPO (Recovery Point Objective) ≤ 1 hour.
+*   **NFR.3.4.3 Data Durability:** Stored data durability ≥ 99.999999999% (eleven nines).
+*   **NFR.3.4.4 Fault Tolerance:** System designed to withstand individual component failures without service interruption.
+
+### 3.5. Maintainability
+*   **NFR.3.5.1 Code Quality:** Adherence to coding standards, comprehensive unit and integration testing (≥ 80% coverage).
+*   **NFR.3.5.2 Monitoring:** Comprehensive logging, monitoring, and alerting for all services and infrastructure.
+*   **NFR.3.5.3 Deployment:** Automated CI/CD pipeline for rapid and reliable deployments.
+
+### 3.6. Usability
+*   **NFR.3.6.1 Intuitive UI:** The user interface for both web and mobile applications must be intuitive and easy to navigate for trading activities.
+*   **NFR.3.6.2 Learning Curve:** Novice traders should be able to deploy their first pre-built strategy within 15 minutes of onboarding.
+*   **NFR.3.6.3 Accessibility:** Adherence to WCAG 2.1 AA standards where applicable.
+
+---
+
+## 4. External System Connections (YAML Format)
+
+This section details the external systems that the Forex Trading Bot will integrate with.
+
+```yaml
+external_systems:
+  # Brokerage Account Connections for Live Trading and Paper Trading
+  brokerage_apis:
+    - name: MetaTrader 4 (MT4) Bridge
+      type: Trading Platform Connector
+      description: Connects to MT4 accounts via proprietary bridge technology. Requires MT4 login credentials and potentially a dedicated MT4 installation/VPS for stability.
+      security_considerations: Encrypted communication via bridge, credentials stored securely, limited trading permissions.
+      data_exchange:
+        input: Trade signals, order modifications, order cancellations.
+        output: Real-time price data, account balance, equity, open positions, order status, trade history.
+      endpoints_examples:
+        - place_order: /mt4/trade/place
+        - get_positions: /mt4/account/positions
+        - get_history: /mt4/account/history
+      authentication: API Key / Shared Secret (for bridge), MT4 Account Login/Password.
+      compatibility: Supports MT4 terminals from various brokers.
+
+    - name: MetaTrader 5 (MT5) Bridge
+      type: Trading Platform Connector
+      description: Connects to MT5 accounts via proprietary bridge technology. Similar to MT4 but for MT5 native features.
+      security_considerations: As MT4.
+      data_exchange: As MT4.
+      endpoints_examples:
+        - place_order: /mt5/trade/place
+        - get_positions: /mt5/account/positions
+      authentication: API Key / Shared Secret (for bridge), MT5 Account Login/Password.
+      compatibility: Supports MT5 terminals from various brokers.
+
+    - name: cTrader API
+      type: Trading Platform Connector
+      description: Direct integration with cTrader platform via their native API.
+      security_considerations: OAuth2 for authentication, token-based authorization.
+      data_exchange:
+        input: Trade signals, order modifications, order cancellations.
+        output: Real-time price data, account balance, equity, open positions, order status, trade history.
+      endpoints_examples:
+        - create_order: POST /api/v1/orders
+        - get_positions: GET /api/v1/positions
+      authentication: OAuth 2.0 (Client ID, Client Secret, Access Token).
+      compatibility: Native cTrader accounts.
+
+    - name: FIX API (Financial Information eXchange)
+      type: Standardized Trading Protocol
+      description: Industry-standard protocol for high-speed exchange of financial information, connecting to prime brokers.
+      security_considerations: Often VPN protected, encrypted FIX sessions, specialized credentials.
+      data_exchange:
+        input: Order Entry, Order Cancel/Replace, Market Data Requests.
+        output: Execution Reports, Market Data Incremental Refresh.
+      endpoints_examples: (Protocol-based, not HTTP endpoints)
+        - MsgType=D (New Order - Single)
+        - MsgType=F (Order Cancel Replace Request)
+      authentication: Pre-shared key, IP Whitelisting, User/Password for FIX session.
+      compatibility: Brokers supporting FIX 4.2 or 4.4.
+
+  # Market Data Providers for Real-time and Historical Data
+  market_data_providers:
+    - name: OANDA v20 API
+      type: Real-time & Historical Data
+      description: Provides real-time streaming Forex data and historical candlestick data.
+      security_considerations: API key protected, rate limits.
+      data_exchange:
+        input: Instrument subscriptions, historical data requests.
+        output: Live price streams (bid/ask), OHLCV data.
+      endpoints_examples:
+        - stream_prices: GET /v3/accounts/{account_id}/pricing/stream
+        - get_candles: GET /v3/instruments/{instrument}/candles
+      authentication: API Key.
+
+    - name: FXCM Historical Data
+      type: Historical Data
+      description: Source for extensive historical tick and OHLCV data.
+      security_considerations: Publicly available or through API for larger datasets.
+      data_exchange:
+        input: Historical data download requests.
+        output: CSV/JSON format of historical tick/candlestick data.
+      endpoints_examples: (Often direct file downloads or specific API calls)
+        - download_tick_data: GET /Data_api_endpoint/tick_data
+      authentication: API Key (if provided by FXCM for large-scale access).
+
+    - name: Dukascopy Historical Data
+      type: Historical Data (Tick)
+      description: High-quality tick data historical feed, essential for precise backtesting.
+      security_considerations: Access often via specific data clients or restricted APIs.
+      data_exchange:
+        input: Data requests for ranges and instruments.
+        output: Tick data in proprietary format or CSV.
+      endpoints_examples: (Often tool-based or specific API)
+        - get_tick_data_xml: GET /datafeed.dukascopy.com/history_api/...
+      authentication: N/A (for public access), specific client authentication (if commercial).
+
+  # Notification Services
+  notification_services:
+    - name: SendGrid / Mailgun (Email)
+      type: Email Notification
+      description: Third-party email delivery service for account activity, alerts, and system notifications.
+      security_considerations: API key protected, sender authentication (SPF/DKIM).
+      data_exchange:
+        input: Email content, recipient list.
+        output: Delivery status.
+      endpoints_examples:
+        - send_email: POST /v3/mail/send
+      authentication: API Key.
+
+    - name: Twilio (SMS)
+      type: SMS Notification
+      description: SMS gateway for critical alerts and 2FA.
+      security_considerations: API key protected, rate limits.
+      data_exchange:
+        input: SMS content, recipient number.
+        output: Delivery status.
+      endpoints_examples:
+        - send_message: POST /2010-04-01/Accounts/{AccountSid}/Messages.json
+      authentication: Account SID, Auth Token.
+
+    - name: Firebase Cloud Messaging (FCM) / Apple Push Notification Service (APNS)
+      type: Mobile Push Notification
+      description: Services for sending push notifications to mobile applications (Android/iOS).
+      security_considerations: Server key protected, device token management.
+      data_exchange:
+        input: Notification payload, device tokens.
+        output: Delivery status.
+      endpoints_examples:
+        - send_fcm: POST /fcm/send
+        - send_apns: POST /3/device/{device_token}
+      authentication: Server Key (FCM), .p8/certificate (APNS).
+
+  # Payment Gateways (for Strategy Marketplace)
+  payment_gateways:
+    - name: Stripe
+      type: Payment Processing
+      description: For processing payments for strategy subscriptions/purchases in the marketplace.
+      security_considerations: PCI DSS compliance, tokenization of card data, webhooks for event notification.
+      data_exchange:
+        input: Payment request details (amount, currency, customer).
+        output: Transaction status, customer data.
+      endpoints_examples:
+        - create_charge: POST /v1/charges
+        - create_subscription: POST /v1/subscriptions
+      authentication: API Keys (Publishable and Secret).
+
+    - name: PayPal
+      type: Payment Processing
+      description: Alternative payment gateway for marketplace transactions.
+      security_considerations: Secure redirect to PayPal, IPN/Webhooks for callbacks.
+      data_exchange:
+        input: Payment request, payer details.
+        output: Transaction ID, payment status.
+      endpoints_examples:
+        - create_payment: POST /v1/payments/payment
+      authentication: Client ID, Secret.
+
+  # Logging and Monitoring
+  logging_monitoring:
+    - name: Datadog / Prometheus + Grafana
+      type: Monitoring & Alerting
+      description: Aggregated metrics, logs, and traces for system health and performance monitoring.
+      security_considerations: API key protected, data retention policies.
+      data_exchange:
+        input: Metrics (CPU, memory, request latency), application logs, traces.
+        output: Visualizations, alerts.
+      endpoints_examples: (Agent-based metric submission, API for log ingestion)
+        - POST /api/v1/metrics
+        - POST /api/v1/series
+      authentication: API Key.
+
+    - name: AWS CloudWatch / Google Cloud Logging
+      type: Cloud-native Logging
+      description: Centralized logging for easy access, search, and analysis of application and infrastructure logs.
+      security_considerations: IAM roles, access policies.
+      data_exchange:
+        input: Application logs, infrastructure logs.
+        output: Log streams, structured logs.
+      endpoints_examples:
+        - PUT /logs/2014-03-28/logGroups/{logGroupName}/logStreams/{logStreamName}/events
+      authentication: IAM Roles / Service Accounts.
+
+  # Version Control (for Code Editor)
+  version_control:
+    - name: Internal Git Repository
+      type: Code Versioning
+      description: Hosted Git repository for managing strategy code versions for advanced (code-based) users.
+      security_considerations: HTTPS/SSH access, RBAC, access tokens.
+      data_exchange:
+        input: Git commits, pushes, fetches.
+        output: Repository content, history.
+      authentication: SSH Keys, Personal Access Tokens.
+
+```
