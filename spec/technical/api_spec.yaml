@@ -1,0 +1,1852 @@
+```yaml
+openapi: 3.0.0
+info:
+  title: Forex Trading Bot API
+  description: API for the Forex Trading Bot, automating foreign exchange trading strategies.
+  version: 1.0.0
+servers:
+  - url: https://api.forexbot.com/v1
+    description: Production server
+  - url: https://dev.forexbot.com/v1
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: User
+    description: User profiles and settings
+  - name: Account
+    description: Brokerage account management
+  - name: Market Data
+    description: Real-time and historical market data
+  - name: Strategy
+    description: Strategy creation, management, backtesting, and live execution
+  - name: Trade
+    description: Managing live trades and orders
+  - name: Report
+    description: Performance and operational reporting
+  - name: Risk Management
+    description: Global and strategy-specific risk controls
+  - name: Notification
+    description: Alerts and notification settings
+  - name: Marketplace
+    description: Strategy marketplace functionalities (future)
+  - name: Social Trading
+    description: Copy trading functionalities (future)
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: StrongPassword123!
+                firstName:
+                  type: string
+                  example: Alex
+                lastName:
+                  type: string
+                  example: Doe
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserRegistrationResponse'
+        '400':
+          description: Invalid input
+        '409':
+          description: User with this email already exists
+
+  /auth/login:
+    post:
+      summary: Authenticate user and get JWT token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: StrongPassword123!
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+        '401':
+          description: Invalid credentials
+
+  /user/profile:
+    get:
+      summary: Get authenticated user's profile
+      tags:
+        - User
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update authenticated user's profile
+      tags:
+        - User
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+      responses:
+        '200':
+          description: User profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Unauthorized
+        '400':
+          description: Invalid input
+
+  /accounts:
+    get:
+      summary: List connected brokerage accounts
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of brokerage accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BrokerageAccount'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Connect a new brokerage account
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectAccountRequest'
+      responses:
+        '201':
+          description: Account connected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerageAccount'
+        '400':
+          description: Invalid account details or broker not supported
+        '401':
+          description: Unauthorized
+
+  /accounts/{accountId}:
+    get:
+      summary: Get details of a specific brokerage account
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+      responses:
+        '200':
+          description: Account details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrokerageAccountDetails'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Account not found
+    delete:
+      summary: Disconnect a brokerage account
+      tags:
+        - Account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+      responses:
+        '204':
+          description: Account disconnected successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Account not found
+
+  /marketdata/symbols:
+    get:
+      summary: Get list of tradable symbols (currency pairs)
+      tags:
+        - Market Data
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: exchange
+          in: query
+          description: Filter symbols by exchange/broker (optional)
+          schema:
+            type: string
+            example: Oanda
+      responses:
+        '200':
+          description: List of symbols
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Symbol'
+        '401':
+          description: Unauthorized
+
+  /marketdata/candles:
+    get:
+      summary: Get historical candlestick data for a symbol
+      tags:
+        - Market Data
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: EURUSD
+        - name: timeframe
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [M1, M5, M15, M30, H1, H4, D1, W1, MN1]
+            example: H1
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+            example: 2023-01-01T00:00:00Z
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+            example: 2023-01-31T23:59:59Z
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 500
+            example: 100
+      responses:
+        '200':
+          description: Historical candle data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Candle'
+        '400':
+          description: Invalid parameters
+        '401':
+          description: Unauthorized
+
+  /strategies:
+    get:
+      summary: Get all strategies for the authenticated user
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          description: Filter strategies by status (e.g., active, inactive, testing)
+          schema:
+            type: string
+            enum: [active, inactive, testing, archived]
+      responses:
+        '200':
+          description: List of strategies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Strategy'
+        '401':
+          description: Unauthorized
+    post:
+      summary: Create a new trading strategy
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStrategyRequest'
+      responses:
+        '201':
+          description: Strategy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Strategy'
+        '400':
+          description: Invalid strategy definition
+        '401':
+          description: Unauthorized
+
+  /strategies/{strategyId}:
+    get:
+      summary: Get details of a specific strategy
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+      responses:
+        '200':
+          description: Strategy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyDetails'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Strategy not found
+    put:
+      summary: Update an existing strategy
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStrategyRequest'
+      responses:
+        '200':
+          description: Strategy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Strategy'
+        '400':
+          description: Invalid strategy definition
+        '401':
+          description: Unauthorized
+        '404':
+          description: Strategy not found
+    delete:
+      summary: Delete a strategy
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+      responses:
+        '204':
+          description: Strategy deleted successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Strategy not found
+
+  /strategies/{strategyId}/backtest:
+    post:
+      summary: Run a backtest for a strategy
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestRequest'
+      responses:
+        '202':
+          description: Backtest initiated, results will be available asynchronously
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestResultSummary'
+        '400':
+          description: Invalid backtest parameters
+        '401':
+          description: Unauthorized
+        '404':
+          description: Strategy not found
+
+  /strategies/{strategyId}/backtest/{backtestId}:
+    get:
+      summary: Get a specific backtest result
+      tags:
+        - Strategy
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        - name: backtestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: f8e7d6c5-b4a3-2c1d-e0f9-8a7b6c5d4e3f
+      responses:
+        '200':
+          description: Backtest result retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestReport'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Backtest not found
+
+  /strategies/{strategyId}/live:
+    post:
+      summary: Start a strategy for live or paper trading
+      tags:
+        - Strategy
+        - Trade
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accountId
+                - mode
+              properties:
+                accountId:
+                  type: string
+                  format: uuid
+                  description: ID of the brokerage account to use.
+                  example: d290f1ee-6c54-4b01-90e6-d701748f0851
+                mode:
+                  type: string
+                  enum: [live, paper]
+                  description: Trading mode.
+                  example: paper
+                initialCapital:
+                  type: number
+                  format: float
+                  description: Initial capital for paper trading if applicable. Required for paper mode.
+                  example: 10000.00
+      responses:
+        '200':
+          description: Strategy started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyStatus'
+        '400':
+          description: Invalid request or insufficient funds
+        '401':
+          description: Unauthorized
+        '404':
+          description: Strategy or account not found
+
+  /strategies/{strategyId}/live/{instanceId}/stop:
+    post:
+      summary: Stop a running live or paper trading strategy
+      tags:
+        - Strategy
+        - Trade
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: strategyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        - name: instanceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+            description: Unique ID for the running instance of the strategy.
+            example: 8c7b6a5e-4d3c-2b1a-0e9f-8d7c6b5a4d3e
+      responses:
+        '200':
+          description: Strategy instance stopped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyStatus'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Strategy instance not found
+
+  /trades:
+    get:
+      summary: Get all historical trades for the user or a specific account/strategy
+      tags:
+        - Trade
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter trades by brokerage account ID.
+        - name: strategyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter trades by strategy ID.
+        - name: symbol
+          in: query
+          schema:
+            type: string
+          description: Filter trades by currency pair (e.g., EURUSD).
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: List of historical trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trade'
+        '401':
+          description: Unauthorized
+
+  /open-positions:
+    get:
+      summary: Get all currently open positions for the user or a specific account
+      tags:
+        - Trade
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter open positions by brokerage account ID.
+        - name: strategyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter open positions by strategy ID.
+      responses:
+        '200':
+          description: List of open positions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OpenPosition'
+        '401':
+          description: Unauthorized
+
+  /reports/performance:
+    get:
+      summary: Generate performance report for an account or strategy
+      tags:
+        - Report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: accountId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Account ID for the report (optional, if omitted, aggregate across all accounts).
+        - name: strategyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Strategy ID for the report (optional).
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+            example: 2023-01-01
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+            example: 2023-12-31
+        - name: groupBy
+          in: query
+          schema:
+            type: string
+            enum: [day, week, month, year]
+            default: month
+      responses:
+        '200':
+          description: Performance report data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerformanceReport'
+        '401':
+          description: Unauthorized
+        '400':
+          description: Invalid request parameters
+
+  /risk-management:
+    get:
+      summary: Get global risk management settings for the user
+      tags:
+        - Risk Management
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User's global risk settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalRiskSettings'
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update global risk management settings
+      tags:
+        - Risk Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GlobalRiskSettingsUpdate'
+      responses:
+        '200':
+          description: Global risk settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalRiskSettings'
+        '400':
+          description: Invalid settings
+        '401':
+          description: Unauthorized
+
+  /risk-management/emergency-stop:
+    post:
+      summary: Immediately stop all active trading strategies and close all open positions
+      tags:
+        - Risk Management
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accountId:
+                  type: string
+                  format: uuid
+                  description: Optional. If provided, stops trading only for this account. If omitted, stops for all accounts.
+                forceClosePositions:
+                  type: boolean
+                  default: true
+                  description: Whether to immediately close all open positions.
+      responses:
+        '200':
+          description: Emergency stop initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Emergency stop initiated. All strategies are being halted and positions closed.
+        '401':
+          description: Unauthorized
+
+  /notifications/settings:
+    get:
+      summary: Get user notification settings
+      tags:
+        - Notification
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User notification settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          description: Unauthorized
+    put:
+      summary: Update user notification settings
+      tags:
+        - Notification
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: Notification settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          description: Unauthorized
+
+  /notifications/alerts:
+    get:
+      summary: Get recent notifications for the user
+      tags:
+        - Notification
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: read
+          in: query
+          schema:
+            type: boolean
+          description: Filter by read status (true for read, false for unread)
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+        '401':
+          description: Unauthorized
+
+  # Advanced Features (Phased Rollout)
+
+  /marketplace/strategies:
+    get:
+      summary: Browse strategies in the marketplace (Future)
+      tags:
+        - Marketplace
+      security:
+        - bearerAuth: []
+      
+    post:
+      summary: Publish a strategy to the marketplace (Future)
+      tags:
+        - Marketplace
+      security:
+        - bearerAuth: []
+
+  /social-trading/subscribe:
+    post:
+      summary: Subscribe to copy trades from another user/bot (Future)
+      tags:
+        - Social Trading
+      security:
+        - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    UserRegistrationResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        message:
+          type: string
+          example: User registered successfully.
+
+    AuthToken:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          example: 3600
+          description: Token expiration in seconds
+
+    UserProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d
+        email:
+          type: string
+          format: email
+          readOnly: true
+          example: user@example.com
+        firstName:
+          type: string
+          example: Alex
+        lastName:
+          type: string
+          example: Doe
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2023-01-01T10:00:00Z
+
+    UserProfileUpdate:
+      type: object
+      properties:
+        firstName:
+          type: string
+          example: Alexander
+        lastName:
+          type: string
+          example: Smith
+
+    BrokerageAccount:
+      type: object
+      properties:
+        accountId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+        brokerName:
+          type: string
+          example: Oanda
+        nickname:
+          type: string
+          example: My Oanda Live Account
+        accountType:
+          type: string
+          enum: [live, demo]
+          example: live
+        currency:
+          type: string
+          example: USD
+        status:
+          type: string
+          enum: [connected, disconnected, error]
+          example: connected
+        connectedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2023-03-15T14:30:00Z
+
+    ConnectAccountRequest:
+      type: object
+      required:
+        - brokerName
+        - accountType
+        - credentials
+      properties:
+        brokerName:
+          type: string
+          example: Oanda
+          description: Name of the brokerage firm (e.g., Oanda, FXCM, MetaTrader).
+        accountType:
+          type: string
+          enum: [live, demo]
+          example: live
+        nickname:
+          type: string
+          description: User-defined nickname for the account.
+          example: My Primary Account
+        credentials:
+          type: object
+          description: Broker-specific credentials (e.g., API key, account ID, MT4 login/password).
+          example:
+            apiKey: some_api_key_123
+            accountId: 1234567
+
+    BrokerageAccountDetails:
+      allOf:
+        - $ref: '#/components/schemas/BrokerageAccount'
+        - type: object
+          properties:
+            balance:
+              type: number
+              format: float
+              example: 10500.25
+            equity:
+              type: number
+              format: float
+              example: 10450.70
+            marginUsed:
+              type: number
+              format: float
+              example: 250.00
+            freeMargin:
+              type: number
+              format: float
+              example: 10200.70
+            openPositionsCount:
+              type: integer
+              example: 3
+            activeStrategiesCount:
+              type: integer
+              example: 1
+
+    Symbol:
+      type: object
+      properties:
+        name:
+          type: string
+          example: EURUSD
+        description:
+          type: string
+          example: Euro vs US Dollar
+        baseCurrency:
+          type: string
+          example: EUR
+        quoteCurrency:
+          type: string
+          example: USD
+        pipPrecision:
+          type: integer
+          example: 4
+          description: Number of decimal places for pip calculation
+        minTradeSize:
+          type: number
+          format: float
+          example: 0.01
+
+    Candle:
+      type: object
+      properties:
+        time:
+          type: string
+          format: date-time
+          example: 2023-01-01T00:00:00Z
+        open:
+          type: number
+          format: float
+          example: 1.0500
+        high:
+          type: number
+          format: float
+          example: 1.0520
+        low:
+          type: number
+          format: float
+          example: 1.0490
+        close:
+          type: number
+          format: float
+          example: 1.0515
+        volume:
+          type: number
+          format: float
+          example: 1234.56
+          description: Volume in base currency
+
+    Strategy:
+      type: object
+      properties:
+        strategyId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        name:
+          type: string
+          example: My MA Crossover Strategy
+        description:
+          type: string
+          example: Buys when MA(50) crosses above MA(200), sells on reverse.
+        type:
+          type: string
+          enum: [visual, code]
+          example: visual
+        status:
+          type: string
+          enum: [draft, active, inactive, testing, archived]
+          example: draft
+        createdAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2023-04-01T11:00:00Z
+        updatedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2023-04-01T11:00:00Z
+
+    StrategyDetails:
+      allOf:
+        - $ref: '#/components/schemas/Strategy'
+        - type: object
+          properties:
+            definition:
+              type: object
+              description: JSON structure for visual strategy or code string for code strategy.
+              oneOf:
+                - $ref: '#/components/schemas/VisualStrategyDefinition'
+                - $ref: '#/components/schemas/CodeStrategyDefinition'
+            parameters:
+              type: object
+              description: Key-value pairs for strategy parameters (e.g., {"ma_period_short": 50})
+              additionalProperties: true
+            riskSettings:
+              $ref: '#/components/schemas/StrategyRiskSettings'
+            performanceMetrics:
+              $ref: '#/components/schemas/StrategyPerformanceSummary'
+
+    VisualStrategyDefinition: # Simplified for example, actual schema can be complex
+      type: object
+      properties:
+        trigger:
+          type: object
+          description: Conditions to enter a trade
+          properties:
+            type:
+              type: string
+              example: MA_CROSSOVER
+            params:
+              type: object
+              properties:
+                indicator1:
+                  type: string
+                  example: MA(SMA, 50)
+                indicator2:
+                  type: string
+                  example: MA(SMA, 200)
+                interval:
+                  type: string
+                  example: H1
+        exit:
+          type: object
+          description: Conditions to exit a trade
+          properties:
+            type:
+              type: string
+              example: TAKE_PROFIT_STOP_LOSS
+            params:
+              type: object
+              properties:
+                tp_pct:
+                  type: number
+                  format: float
+                  example: 1.0
+                sl_pct:
+                  type: number
+                  format: float
+                  example: 0.5
+
+    CodeStrategyDefinition:
+      type: object
+      properties:
+        language:
+          type: string
+          example: python_dsl
+        code:
+          type: string
+          description: Base64 encoded strategy code.
+          example: cHJpbnQoIkhlbGxvLCBXb3JsZCEiKQo= # print("Hello, World!")
+
+    CreateStrategyRequest:
+      type: object
+      required:
+        - name
+        - type
+        - definition
+      properties:
+        name:
+          type: string
+          example: My New Complex Strategy
+        description:
+          type: string
+          example: A strategy using custom indicators and a reinforcement learning model.
+        type:
+          type: string
+          enum: [visual, code]
+          example: code
+        definition:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/VisualStrategyDefinition'
+            - $ref: '#/components/schemas/CodeStrategyDefinition'
+        parameters:
+          type: object
+          description: Initial parameters for the strategy
+          additionalProperties: true
+        riskSettings:
+          $ref: '#/components/schemas/StrategyRiskSettings'
+
+    UpdateStrategyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          example: My Updated Strategy Name
+        description:
+          type: string
+          example: Edited description for clarity.
+        definition:
+          type: object
+          oneOf:
+            - $ref: '#/components/schemas/VisualStrategyDefinition'
+            - $ref: '#/components/schemas/CodeStrategyDefinition'
+        parameters:
+          type: object
+          description: Updated parameters for the strategy
+          additionalProperties: true
+        riskSettings:
+          $ref: '#/components/schemas/StrategyRiskSettings'
+        status:
+          type: string
+          enum: [draft, active, inactive, testing, archived]
+          example: active
+
+    StrategyRiskSettings:
+      type: object
+      properties:
+        maxDailyDrawdownPct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Maximum allowed daily drawdown percentage for this strategy.
+          example: 2.5
+        positionSizingModel:
+          type: string
+          enum: [fixed_lot, percent_equity, risk_percent]
+          example: risk_percent
+        riskPerTradePct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Percentage of equity at risk per trade for 'risk_percent' model.
+          example: 1.0
+        fixedLotSize:
+          type: number
+          format: float
+          minimum: 0.01
+          description: Fixed lot size for 'fixed_lot' model.
+          example: 0.1
+        maxOpenTrades:
+          type: integer
+          minimum: 1
+          description: Maximum number of open trades permitted by this strategy.
+          example: 5
+        trailingStopEnabled:
+          type: boolean
+          example: true
+        trailingStopPips:
+          type: integer
+          minimum: 1
+          description: Number of pips for trailing stop.
+          example: 20
+
+    BacktestRequest:
+      type: object
+      required:
+        - symbol
+        - timeframe
+        - from
+        - to
+      properties:
+        symbol:
+          type: string
+          example: EURUSD
+        timeframe:
+          type: string
+          enum: [M1, M5, M15, M30, H1, H4, D1, W1, MN1]
+          example: H1
+        from:
+          type: string
+          format: date-time
+          example: 2022-01-01T00:00:00Z
+        to:
+          type: string
+          format: date-time
+          example: 2022-12-31T23:59:59Z
+        initialCapital:
+          type: number
+          format: float
+          default: 10000.00
+          example: 5000.00
+        commissionPerLot:
+          type: number
+          format: float
+          default: 7.0
+          example: 5.0
+        spreadPips:
+          type: number
+          format: float
+          default: 1.5
+          example: 1.0
+        slippagePips:
+          type: number
+          format: float
+          default: 0.5
+          example: 0.2
+        optimizationParameters:
+          type: object
+          description: Parameters for optimization (e.g., ranges for indicator values)
+          additionalProperties:
+            type: array
+            items:
+              type: number # [start, end, step] or single value
+          example:
+            ma_period_short: [10, 50, 10]
+            rsi_period: 14
+
+    BacktestResultSummary:
+      type: object
+      properties:
+        backtestId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: f8e7d6c5-b4a3-2c1d-e0f9-8d7c6b5a4d3e
+        strategyId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        status:
+          type: string
+          enum: [pending, running, completed, error]
+          example: running
+        startedAt:
+          type: string
+          format: date-time
+          readOnly: true
+          example: 2023-05-01T09:00:00Z
+        progress:
+          type: number
+          format: float
+          example: 0.75
+          description: Current progress percentage for running backtests.
+
+    BacktestReport:
+      type: object
+      properties:
+        backtestId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: f8e7d6c5-b4a3-2c1d-e0f9-8d7c6b5a4d3e
+        strategyId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        status:
+          type: string
+          enum: [completed, error]
+          example: completed
+        runDate:
+          type: string
+          format: date-time
+          example: 2023-05-01T09:15:30Z
+        metrics:
+          $ref: '#/components/schemas/StrategyPerformanceSummary'
+        equityCurveData:
+          type: array
+          items:
+            type: object
+            properties:
+              time:
+                type: string
+                format: date-time
+              equity:
+                type: number
+                format: float
+          example:
+            - time: 2022-01-01T00:00:00Z
+              equity: 10000.00
+            - time: 2022-01-02T00:00:00Z
+              equity: 10025.10
+        tradeLog:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trade'
+
+    StrategyPerformanceSummary:
+      type: object
+      properties:
+        netProfit:
+          type: number
+          format: float
+          example: 1250.75
+        grossProfit:
+          type: number
+          format: float
+          example: 2500.00
+        grossLoss:
+          type: number
+          format: float
+          example: -1249.25
+        profitFactor:
+          type: number
+          format: float
+          example: 2.0
+        maxDrawdown:
+          type: number
+          format: float
+          example: -350.50
+        maxDrawdownPct:
+          type: number
+          format: float
+          example: -3.5
+        totalTrades:
+          type: integer
+          example: 150
+        winningTrades:
+          type: integer
+          example: 90
+        losingTrades:
+          type: integer
+          example: 60
+        winRate:
+          type: number
+          format: float
+          example: 60.0
+        averageProfitPerTrade:
+          type: number
+          format: float
+          example: 8.33
+        sharpeRatio:
+          type: number
+          format: float
+          nullable: true
+          example: 0.85
+        sortinoRatio:
+          type: number
+          format: float
+          nullable: true
+          example: 1.2
+        equity:
+          type: number
+          format: float
+          example: 11250.75 # Current equity at the end of the period/test.
+
+    StrategyStatus:
+      type: object
+      properties:
+        strategyId:
+          type: string
+          format: uuid
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        instanceId:
+          type: string
+          format: uuid
+          description: Unique ID for this running instance of the strategy.
+          example: 8c7b6a5e-4d3c-2b1a-0e9f-8d7c6b5a4d3e
+        accountId:
+          type: string
+          format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+        status:
+          type: string
+          enum: [running, stopped, paused, error]
+          example: running
+        mode:
+          type: string
+          enum: [live, paper]
+          example: paper
+        startedAt:
+          type: string
+          format: date-time
+          example: 2023-05-02T10:30:00Z
+        lastUpdated:
+          type: string
+          format: date-time
+          example: 2023-05-02T10:35:10Z
+        totalPnl:
+          type: number
+          format: float
+          example: 25.50
+
+    Trade:
+      type: object
+      properties:
+        tradeId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: f1e2d3c4-b5a6-7d8e-9f0a-1b2c3d4e5f6a
+        accountId:
+          type: string
+          format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+        strategyId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        symbol:
+          type: string
+          example: EURUSD
+        type:
+          type: string
+          enum: [buy, sell]
+          example: buy
+        volume:
+          type: number
+          format: float
+          example: 0.1
+        entryPrice:
+          type: number
+          format: float
+          example: 1.0750
+        exitPrice:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0780
+        entryTime:
+          type: string
+          format: date-time
+          example: 2023-05-02T10:31:05Z
+        exitTime:
+          type: string
+          format: date-time
+          nullable: true
+          example: 2023-05-02T10:34:50Z
+        pnl:
+          type: number
+          format: float
+          nullable: true
+          example: 3.00
+        status:
+          type: string
+          enum: [open, closed, cancelled, rejected]
+          example: closed
+        sl:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0700
+        tp:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0800
+
+    OpenPosition:
+      type: object
+      properties:
+        positionId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: g6h5j4k3-l2m1-n0p9-q8r7-s6t5u4v3w2x1
+        accountId:
+          type: string
+          format: uuid
+          example: d290f1ee-6c54-4b01-90e6-d701748f0851
+        strategyId:
+          type: string
+          format: uuid
+          nullable: true
+          example: 1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d
+        symbol:
+          type: string
+          example: EURUSD
+        type:
+          type: string
+          enum: [buy, sell]
+          example: buy
+        volume:
+          type: number
+          format: float
+          example: 0.1
+        entryPrice:
+          type: number
+          format: float
+          example: 1.0750
+        currentPrice:
+          type: number
+          format: float
+          example: 1.0765
+        entryTime:
+          type: string
+          format: date-time
+          example: 2023-05-02T10:31:05Z
+        profitLoss:
+          type: number
+          format: float
+          example: 1.50
+        sl:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0700
+        tp:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0800
+        trailingStop:
+          type: number
+          format: float
+          nullable: true
+          example: 1.0740
+    
+    PerformanceReport:
+      type: object
+      properties:
+        reportId:
+          type: string
+          format: uuid
+          example: 9d8c7b6a-5f4e-3d2c-1b0a-9f8e7d6c5b4a
+        accountId:
+          type: string
+          format: uuid
+          nullable: true
+        strategyId:
+          type: string
+          format: uuid
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        period:
+          type: string
+          enum: [daily, weekly, monthly, quarterly, yearly]
+        summary:
+          $ref: '#/components/schemas/StrategyPerformanceSummary'
+        timeSeries:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              netProfit:
+                type: number
+                format: float
+              equity:
+                type: number
+                format: float
+        tradeBreakdown:
+          type: object
+          properties:
+            bySymbol:
+              type: array
+              items:
+                type: object
+                properties:
+                  symbol:
+                    type: string
+                  netProfit:
+                    type: number
+                    format: float
+                  winRate:
+                    type: number
+                    format: float
+            byType:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [buy, sell]
+                  netProfit:
+                    type: number
+                    format: float
+                  winRate:
+                    type: number
+                    format: float
+
+    GlobalRiskSettings:
+      type: object
+      properties:
+        globalMaxDailyDrawdownPct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Overall maximum daily drawdown percentage across all accounts/strategies.
+          example: 5.0
+        globalMaxOpenPositions:
+          type: integer
+          minimum: 1
+          description: Maximum total open positions across all active strategies/accounts.
+          example: 10
+        defaultPositionSizingModel:
+          type: string
+          enum: [fixed_lot, percent_equity, risk_percent]
+          example: risk_percent
+        defaultRiskPerTradePct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          example: 0.5
+        pauseOnMaxDrawdown:
+          type: boolean
+          example: true
+
+    GlobalRiskSettingsUpdate:
+      type: object
+      properties:
+        globalMaxDailyDrawdownPct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        globalMaxOpenPositions:
+          type: integer
+          minimum: 1
+        defaultPositionSizingModel:
+          type: string
+          enum: [fixed_lot, percent_equity, risk_percent]
+        defaultRiskPerTradePct:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+        pauseOnMaxDrawdown:
+          type: boolean
+
+    NotificationSettings:
+      type: object
+      properties:
+        emailEnabled:
+          type: boolean
+          example: true
+        smsEnabled:
+          type: boolean
+          example: false
+        pushEnabled:
+          type: boolean
+          example: true
+        tradeExecution:
+          type: boolean
+          description: Notify on every trade opening/closing.
+          example: true
+        strategyStatusChange:
+          type: boolean
+          description: Notify when a strategy starts/stops/pauses.
+          example: true
+        drawdownWarning:
+          type: boolean
+          description: Notify when drawdown limits are approached.
+          example: true
+        accountBalanceChange:
+          type: boolean
+          description: Notify on significant account balance changes.
+          example: false
+        systemAlerts:
+          type: boolean
+          description: Notify on critical system errors or disconnections.
+          example: true
+
+    Notification:
+      type: object
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+          readOnly: true
+          example: e1f2g3h4-i5j6-k7l8-m9n0-o1p2q3r4s5t6
+        type:
+          type: string
+          enum: [trade_execution, strategy_status, drawdown_warning, balance_change, system_alert, info]
+          example: trade_execution
+        message:
+          type: string
+          example: Strategy 'My Scalper' opened a BUY position on EURUSD at 1.0750.
+        timestamp:
+          type: string
+          format: date-time
+          example: 2023-05-02T11:00:00Z
+        read:
+          type: boolean
+          example: false
+        details:
+          type: object
+          description: Optional, specific details related to the notification (e.g., tradeId, strategyId).
+          additionalProperties: true
+
+```
