@@ -1,0 +1,291 @@
+```yaml
+# Microservices Architecture Specification for Forex Trading Bot
+
+# Global Configuration
+name: "ForexTradingBot"
+version: "1.0.0"
+description: "Microservices for automated Forex trading platform."
+cloud_provider: "AWS"
+container_orchestration: "Kubernetes"
+message_queue: "Apache Kafka"
+ci_cd_tool: "GitLab CI"
+monitoring_stack: "Prometheus & Grafana"
+logging_stack: "ELK Stack (Elasticsearch, Logstash, Kibana)"
+security_standards: ["OWASP Top 10", "ISO 27001", "PCI DSS (if processing payments directly)"]
+
+# Microservices Definition
+microservices:
+
+  # 1. API Gateway Service
+  - name: "api-gateway-service"
+    description: "Handles all incoming HTTP/WebSocket requests, authentication, authorization, and routing to backend services."
+    owner: "Platform Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Node.js (Express)"
+      protocols: ["HTTP/2", "WebSocket"]
+      security: ["JWT Validation", "Rate Limiting", "CORS"]
+    dependencies: ["user-management-service"]
+    endpoints:
+      - "/api/*"
+      - "/ws/*"
+    sla:
+      availability: "99.99%"
+      latency_p99: "50ms"
+    capacity_metrics:
+      - "RPS"
+      - "Connection Count"
+    alerting:
+      - "High Error Rate (4xx, 5xx)"
+      - "High Latency"
+      - "CPU/Memory Utilization"
+
+  # 2. User Management Service
+  - name: "user-management-service"
+    description: "Manages user registration, authentication (SSO, 2FA), authorization, and user profiles."
+    owner: "Auth & Identity Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Go"
+      database: "PostgreSQL"
+      cache: "Redis"
+      security: ["bcrypt for passwords", "JWT Issuance"]
+    dependencies: []
+    data_stores:
+      - "PostgreSQL (users, roles, permissions)"
+    sla:
+      availability: "99.99%"
+      latency_p99: "30ms"
+    capacity_metrics:
+      - "User Registrations/min"
+      - "Login Attempts/min"
+
+  # 3. Account Management Service
+  - name: "account-management-service"
+    description: "Manages user brokerage account connections, balances, equity, and P&L tracking."
+    owner: "Core Trading Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Java (Spring Boot)"
+      database: "PostgreSQL"
+      cache: "Redis"
+    dependencies: ["market-data-service", "execution-engine-service"]
+    data_stores:
+      - "PostgreSQL (broker_connections, account_balances, equity_history)"
+    sla:
+      availability: "99.95%"
+      latency_p99: "100ms"
+    capacity_metrics:
+      - "Account Updates/sec"
+      - "Broker API Calls/min"
+
+  # 4. Market Data Service
+  - name: "market-data-service"
+    description: "Ingests, normalizes, and distributes real-time and historical market data."
+    owner: "Market Data Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Python (FastAPI)"
+      time_series_db: "InfluxDB / TimescaleDB (for OHLCV, Tick Data)"
+      cache: "Redis (for real-time tickers)"
+      connectors: ["MetaTrader WebAPI", "Broker FIX API", "Proprietary Data Feeds"]
+    dependencies: []
+    data_stores:
+      - "InfluxDB/TimescaleDB (market_data_ohlcv, market_data_ticks)"
+      - "S3 (archive_raw_tick_data)"
+    sla:
+      availability: "99.9%"
+      latency_p99_realtime: "10ms" # For critical real-time data
+      latency_p99_historical: "200ms"
+    capacity_metrics:
+      - "Data Ingest Rate (msgs/sec)"
+      - "Data Query Rate (RPS)"
+      - "Disk I/O"
+
+  # 5. Strategy Management Service
+  - name: "strategy-management-service"
+    description: "Stores, retrieves, and validates user-defined strategies (visual block definitions, code snippets)."
+    owner: "Strategy & Backtesting Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Node.js (NestJS)"
+      database: "PostgreSQL"
+      storage: "S3 (for code attachments/large definitions)"
+    dependencies: []
+    data_stores:
+      - "PostgreSQL (strategy_definitions, strategy_templates)"
+    sla:
+      availability: "99.95%"
+      latency_p99: "80ms"
+    capacity_metrics:
+      - "Strategy Saves/min"
+      - "Strategy Loads/min"
+
+  # 6. Backtesting & Optimization Service
+  - name: "backtesting-optimization-service"
+    description: "Executes strategy backtests and optimizations on historical data."
+    owner: "Strategy & Backtesting Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Python (Pandas, Dask/Apache Spark for distributed processing)"
+      messaging: "Kafka (for job queuing)"
+      storage: "S3 (for historical data access, results storage)"
+    dependencies: ["market-data-service", "strategy-management-service"]
+    data_stores:
+      - "S3 (backtest_results, optimization_logs)"
+    sla:
+      availability: "99.9%"
+      average_job_completion_time: "5 min (for standard backtest)"
+    capacity_metrics:
+      - "Backtest Jobs/hour"
+      - "Optimization Jobs/hour"
+      - "CPU/Memory Utilization (distributed workers)"
+
+  # 7. Execution Engine Service
+  - name: "execution-engine-service"
+    description: "Core service for low-latency trade execution, order management, and risk checks."
+    owner: "Core Trading Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "C++ / Rust (for high performance) or Go"
+      messaging: "Kafka (for order requests, execution reports)"
+      cache: "Redis (for real-time position keeping, order books)"
+      connectors: ["MetaTrader Bridge APIs", "FIX API Adapters"]
+    dependencies: ["market-data-service", "strategy-management-service", "account-management-service"]
+    data_stores:
+      - "Redis (active_orders, current_positions)"
+      - "PostgreSQL (trade_history 'long-term storage')"
+    sla:
+      availability: "99.99%"
+      latency_p99_order_placement: "20ms"
+      accuracy_trade_execution: "100%"
+    capacity_metrics:
+      - "Orders Processed/sec"
+      - "Broker Latency"
+      - "Connection Stability"
+    alerting:
+      - "Broker Disconnection"
+      - "Order Rejection Rate"
+      - "High Margin Utilization"
+
+  # 8. Reporting & Analytics Service
+  - name: "reporting-analytics-service"
+    description: "Generates performance reports and detailed trade analytics."
+    owner: "Reporting Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Python (Plotly, Pandas)"
+      database: "PostgreSQL"
+      data_warehouse: "Redshift (for aggregated data)"
+      reporting_tools: ["Grafana", "Tableau (internal)"]
+    dependencies: ["execution-engine-service", "account-management-service"]
+    data_stores:
+      - "Redshift (aggregated_trade_stats)"
+      - "PostgreSQL (report_configurations)"
+      - "S3 (generated_reports_pdf_csv)"
+    sla:
+      availability: "99.9%"
+      report_generation_time_p99: "60s"
+    capacity_metrics:
+      - "Report Generation Requests/hour"
+      - "Data Processing Time"
+
+  # 9. Notification Service
+  - name: "notification-service"
+    description: "Manages alert rules and distributes notifications (email, SMS, push)."
+    owner: "Platform Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Node.js (Express)"
+      database: "PostgreSQL"
+      messaging: "Kafka (for internal event triggers)"
+      providers: ["Twilio (SMS)", "SendGrid (Email)", "Firebase (Push Notifications)"]
+    dependencies: ["execution-engine-service", "account-management-service", "strategy-management-service"]
+    data_stores:
+      - "PostgreSQL (notification_settings, notification_templates)"
+    sla:
+      availability: "99.9%"
+      message_delivery_rate: "99.5%"
+    capacity_metrics:
+      - "Notifications Sent/min"
+      - "Provider API Latency"
+
+  # 10. Job Scheduler Service
+  - name: "job-scheduler-service"
+    description: "Manages and triggers scheduled tasks (e.g., daily report generation, data syncs)."
+    owner: "Platform Team"
+    lifecycle_stage: "GA"
+    tech_stack:
+      language: "Go"
+      scheduler: "Kubernetes CronJobs / Apache Airflow"
+      database: "PostgreSQL"
+    dependencies: ["reporting-analytics-service", "market-data-service"]
+    data_stores:
+      - "PostgreSQL (scheduled_jobs)"
+    sla:
+      availability: "99.9%"
+      job_execution_accuracy: "99%"
+    capacity_metrics:
+      - "Scheduled Jobs Executed/hour"
+      - "Job Execution Success Rate"
+
+  # 11. AI/ML Integration Service (Phase 3 - Future)
+  - name: "ai-ml-service"
+    description: "Provides predictive analytics, sentiment analysis, and adaptive strategy optimization."
+    owner: "AI/ML Team"
+    lifecycle_stage: "Future / Alpha"
+    tech_stack:
+      language: "Python (TensorFlow/PyTorch, Scikit-learn)"
+      messaging: "Kafka (for real-time data input)"
+      storage: "S3 (for model artifacts, training data)"
+      compute: "GPU instances (for training)"
+    dependencies: ["market-data-service", "reporting-analytics-service", "strategy-management-service"]
+    data_stores:
+      - "S3 (model_checkpoints, training_data)"
+    sla:
+      availability: "99.5%"
+      prediction_latency_p99: "Latency for inference is critical, depends on use case"
+    capacity_metrics:
+      - "Inference Requests/sec"
+      - "Model Training Jobs/day"
+
+  # 12. Strategy Marketplace Service (Phase 3 - Future)
+  - name: "marketplace-service"
+    description: "Platform for users to buy, sell, or rent trading strategies."
+    owner: "Product & Ecosystem Team"
+    lifecycle_stage: "Future / Beta"
+    tech_stack:
+      language: "Node.js (Express)"
+      database: "PostgreSQL"
+      payment_gateway: "Stripe"
+    dependencies: ["user-management-service", "strategy-management-service", "reporting-analytics-service"]
+    data_stores:
+      - "PostgreSQL (strategy_listings, transactions, reviews)"
+    sla:
+      availability: "99.9%"
+      transaction_processing_time: "5s"
+    capacity_metrics:
+      - "Listings Created/day"
+      - "Transactions/day"
+
+  # 13. Social Trading Service (Phase 3 - Future)
+  - name: "social-trading-service"
+    description: "Enables copy trading and social interaction features."
+    owner: "Product & Ecosystem Team"
+    lifecycle_stage: "Future / Beta"
+    tech_stack:
+      language: "Go"
+      database: "PostgreSQL"
+      cache: "Redis"
+    dependencies: ["user-management-service", "execution-engine-service", "reporting-analytics-service"]
+    data_stores:
+      - "PostgreSQL (copy_relationships, social_feeds)"
+      - "Redis (leaderboards, real-time follower data)"
+    sla:
+      availability: "99.9%"
+      copy_execution_latency_p99: "50ms" # Critical for copy trading
+    capacity_metrics:
+      - "Copy Operations/sec"
+      - "Social Interactions/min"
+
+```
