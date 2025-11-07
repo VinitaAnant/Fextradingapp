@@ -1,0 +1,377 @@
+The following detailed specification document is generated based on the provided PRD.
+
+---
+
+# Forex Trading Bot - Detailed Specification Document
+
+## 1. Introduction
+
+This document details the technical specifications for the Forex Trading Bot, a platform designed to automate foreign exchange trading. It translates the product requirements outlined in the PRD into a concrete, actionable plan for development, focusing on architecture, components, and implementation details.
+
+## 2. System Architecture
+
+The Forex Trading Bot will adopt a microservices-based architecture deployed on a cloud platform (e.g., AWS), orchestrated by Kubernetes. This design ensures scalability, resilience, and maintainability.
+
+### 2.1. High-Level System Architecture (Mermaid Diagram)
+
+```mermaid
+graph TD
+    subgraph "Clients"
+        A[Web Application (React/Angular/Vue.js)]
+        B[Mobile App (React Native/Flutter)]
+    end
+
+    subgraph "Cloud Infrastructure (e.g., AWS)"
+        subgraph "Edge Services"
+            C(API Gateway / Load Balancer)
+            D(WAF / DDoS Protection)
+        end
+
+        subgraph "Backend Microservices (Kubernetes Cluster)"
+
+            subgraph "Core Microservices"
+                UM(User Management Service)
+                AM(Account Management Service)
+                SMG(Strategy Management Service)
+BTO(Backtesting & Optimization Service)
+EX(Execution Engine Service)
+                RPS(Reporting & Analytics Service)
+                NS(Notification Service)
+                JS(Job Scheduler Service)
+            end
+
+            subgraph "Data & Messaging"
+                MQ(Message Queue - Kafka/RabbitMQ)
+                MD(Market Data Service)
+            end
+
+        end
+
+        subgraph "Data Storage"
+            DBR(Relational DB - PostgreSQL)
+            DBT(Time-Series DB - InfluxDB/TimescaleDB)
+            DBN(NoSQL DB - MongoDB)
+            OBS(Object Storage - S3)
+        end
+
+        subgraph "External Integrations"
+            E1(Broker APIs: MT4/5, cTrader, FIX)
+            E2(Market Data Providers)
+            E3(Payment Gateways)
+            E4(SMS/Email Providers)
+        end
+
+        subgraph "Monitoring & Operations"
+            MON(Monitoring & Alerting - Prometheus/Grafana)
+            LOG(Centralized Logging - ELK Stack)
+            CICD(CI/CD Pipeline - Jenkins/GitLab CI)
+        end
+
+    C -- Internet traffic --> A
+    C -- Internet traffic --> B
+
+    A -- REST/WebSockets --> C
+    B -- REST/WebSockets --> C
+
+    C -- Authenticated Requests --> UM
+    C -- Authenticated Requests --> AM
+    C -- Authenticated Requests --> SMG
+    C -- Authenticated Requests --> BTO
+    C -- Authenticated Requests --> RPS
+    C -- Authenticated Requests --> NS
+
+    UM -- Auth Tokens --> C
+    AM -- Config --> E1
+    SMG -- Strategy Definitions --> DBR
+    BTO -- Historical Data --> MD
+    BTO -- Optimized Parameters --> SMG
+    EX -- Market Data --> MD
+    EX -- Order Processing --> MQ
+    EX -- Broker Commands --> E1
+    RPS -- Trade History --> DBR
+    RPS -- Performance Data --> DBT
+    NS -- Notifications --> E4
+    JS -- Scheduled Tasks --> SMG
+
+    MD -- Real-time/Historical Data --> MQ
+    MD -- Data Providers --> E2
+
+    MQ -- Market Data Updates --> EX
+    MQ -- Strategy Events --> BTO, EX
+    MQ -- Order Requests --> EX
+    MQ -- Trade Confirmations --> RPS
+    MQ -- Notification Triggers --> NS
+
+    UM -- User Data --> DBR
+    AM -- Account Data --> DBR
+    SMG -- Strategy Data --> DBR
+    BTO -- Backtest Results --> DBN, OBS
+    EX -- Trade Logs --> DBN
+    RPS -- Report Config --> DBR
+    NS -- Alert Config --> DBR
+
+    DBR -- Persisted Data --> UM, AM, SMG, RPS, NS
+    DBT -- Time-based Data --> MD
+    DBN -- Log Data --> BTO, EX
+    OBS -- Large Files --> BTO
+
+    MON -- Metrics --> All Services
+    LOG -- Logs --> All Services
+    CICD -- Deployments --> Kubernetes Cluster
+```
+
+### 2.2. Component Breakdown
+
+#### 2.2.1. Client-Side (Frontend)
+
+*   **Web Application:**
+    *   **Technology Stack:** React (preferred for its component-based architecture and widespread adoption), Redux for state management, Axios for HTTP requests, WebSockets for real-time data.
+    *   **Features:** User dashboard, strategy builder (visual), backtesting interface, live trading controls, reporting, settings.
+    *   **Security:** Token-based authentication (JWT), secure cookie management, input validation, XSS/CSRF protection.
+*   **Mobile Applications (iOS/Android):**
+    *   **Technology Stack:** React Native (allows for a single codebase across platforms), Expo for rapid development, native modules for device-specific features if required.
+    *   **Features:** Subset of web app features, focusing on monitoring, alerts, basic controls, and performance overview.
+    *   **Security:** Biometric authentication, secure local storage, push notification management.
+
+#### 2.2.2. Backend Microservices
+
+All microservices will be developed primarily using **Python (FastAPI/Django Rest Framework)** for its robust ecosystem in data science and trading, or **Node.js (Express.js)** for high-throughput I/O operations, deployed as Docker containers on Kubernetes.
+
+*   **API Gateway:**
+    *   **Purpose:** Single entry point for all client requests, routing, authentication, rate limiting, and request transformation.
+    *   **Technology:** Nginx or AWS API Gateway.
+    *   **Security:** JWT validation, SSL/TLS termination.
+*   **User Management Service (UMS):**
+    *   **Purpose:** Manages user registration, login, profile management, subscription plans, and authorization.
+    *   **API Endpoints:** `/register`, `/login`, `/profile`, `/subscriptions`.
+    *   **Data:** User credentials (hashed), profile information, subscription details.
+*   **Account Management Service (AMS):**
+    *   **Purpose:** Stores and manages user-linked brokerage accounts, credentials (encrypted), and real-time account balances/equity.
+    *   **API Endpoints:** `/accounts`, `/accounts/{id}/balance`, `/accounts/{id}/connect`.
+    *   **Integrations:** Securely communicates with Broker Connectors in the Execution Engine.
+*   **Market Data Service (MDS):**
+    *   **Purpose:** Gathers, normalizes, and distributes real-time and historical market data from various providers.
+    *   **Components:**
+        *   **Data Collector Modules:** Specific adapters for each external data provider (e.g., FXCM, OANDA, custom APIs).
+        *   **Data Normalizer:** Standardizes data schemas (OHLCV, tick data) for internal use.
+        *   **Data Cache:** Redis for low-latency access to frequently requested data.
+    *   **API Endpoints:** `/data/historical`, `/data/realtime` (via WebSockets).
+    *   **Data:** Raw and normalized market data.
+*   **Strategy Management Service (SMS):**
+    *   **Purpose:** Stores, validates, and manages user-defined trading strategies. Includes a visual DSL parser and code editor support.
+    *   **API Endpoints:** `/strategies`, `/strategies/{id}/validate`, `/strategies/{id}/activate`.
+    *   **Data:** Strategy definitions (JSON for visual, code for advanced), parameters, version history.
+*   **Backtesting & Optimization Service (BOS):**
+    *   **Purpose:** Executes historical simulations and parameter optimizations for strategies.
+    *   **Components:**
+        *   **Backtesting Engine:** Interprets strategy logic, applies historical market data, and simulates trades. Parallel processing with Dask or Apache Spark.
+        *   **Optimization Module:** Uses genetic algorithms or grid search to find optimal strategy parameters.
+    *   **Integrations:** Access historical data from MDS, sends results to RPS.
+    *   **Data:** Backtest configurations, results, and optimized parameters.
+*   **Execution Engine Service (EES):**
+    *   **Purpose:** The core intelligence for live trading, responsible for strategy execution, order management, and risk control.
+    *   **Components:**
+        *   **Strategy Execution Module:** Runs active strategies, evaluates entry/exit conditions based on real-time data.
+        *   **Order Management System (OMS):** Manages the lifecycle of orders (placement, modification, cancellation, status tracking).
+        *   **Broker Connectors:** Adapters for various brokerage APIs (MetaTrader 4/5, cTrader, FIX API, others). Responsible for translating internal orders to broker-specific formats.
+        *   **Risk Engine:** Applies pre-trade and intra-trade risk checks (SL/TP, position sizing, max drawdown, emergency stop).
+        *   **Slippage/Spread Simulation:** For paper trading and realistic backtesting.
+    *   **Integrations:** Receives strategy signals from SMS, market data from MDS, sends order requests to Broker APIs, publishes trade events to MQ.
+    *   **Data:** Live strategy states, open positions, pending orders, trade logs.
+*   **Reporting & Analytics Service (RAS):**
+    *   **Purpose:** Generates performance reports, calculates metrics, and provides tools for visualizing trade history and strategy effectiveness.
+    *   **API Endpoints:** `/reports`, `/analytics`, `/trade-journal`.
+    *   **Integrations:** Processes trade data from EES (via MQ), fetches historical data from DBT/DBN.
+    *   **Data:** Consolidated trade history, P&L, drawdown, Sharpe ratio, equity curves.
+*   **Notification Service (NOS):**
+    *   **Purpose:** Manages alert configurations and distributes notifications (email, SMS, push) triggered by system events or strategy conditions.
+    *   **Integrations:** Connects to external email/SMS providers (SendGrid, Twilio) and push notification services (Firebase Cloud Messaging).
+    *   **Data:** User notification preferences, alert rules.
+*   **Job Scheduler Service (JSS):**
+    *   **Purpose:** Manages and triggers scheduled tasks (e.g., daily report generation, market data synchronization, health checks).
+    *   **Technology:** Celery Beat or Kubernetes CronJobs.
+
+#### 2.2.3. Data Storage
+
+*   **Relational Database (PostgreSQL):**
+    *   **Use Cases:** User profiles, account configurations, strategy definitions, subscription data, pricing. ACID compliance is critical here.
+    *   **Schema Design:** Tables for `Users`, `Accounts`, `Strategies`, `Subscriptions`, `NotificationRules`.
+*   **Time-Series Database (InfluxDB/TimescaleDB):**
+    *   **Use Cases:** High-frequency storage of normalized market data (OHLCV, tick data) and detailed performance metrics (equity curves, raw trade entries/exits for reporting). Optimized for time-based queries.
+*   **NoSQL Database (MongoDB/Cassandra):**
+    *   **Use Cases:** Audit logs, raw backtest results (which can be unstructured), user activity logs, strategy execution traces. Provides flexibility and horizontal scalability for large volumes of semi-structured data.
+*   **Object Storage (Amazon S3):**
+    *   **Use Cases:** Archiving large raw historical data files (e.g., raw tick data from providers), generated PDF/CSV reports, backup files. Cost-effective for large, infrequently accessed data.
+
+#### 2.2.4. Message Queue (Kafka/RabbitMQ)
+
+*   **Purpose:** Asynchronous communication between microservices, ensuring loose coupling, reliability, and enabling real-time data streams.
+*   **Key Topics/Queues:**
+    *   `market-data-feed`: Real-time market data updates from MDS to EES.
+    *   `strategy-events`: Signals from SMS/BOS to EES (e.g., "activate strategy", "pause strategy").
+    *   `order-requests`: Order placement/modification/cancellation requests from EES to Broker Connectors.
+    *   `trade-confirmations`: Broker confirmations and trade updates from Broker Connectors to EES and RAS.
+    *   `notification-triggers`: Events triggering alerts from EES/AMS to NOS.
+
+#### 2.2.5. Infrastructure & Operations
+
+*   **Cloud Provider:** AWS (preferred). Leverages EC2, RDS, S3, EKS (Elastic Kubernetes Service), SQS/Kafka, CloudWatch, ALB.
+*   **Container Orchestration:** Kubernetes (EKS) for automated deployment, scaling, and management of microservice containers.
+*   **CI/CD Pipeline:** Jenkins / GitLab CI / GitHub Actions.
+    *   Automated testing (unit, integration, end-to-end).
+    *   Automated Docker image building and pushing to a container registry.
+    *   Automated deployment to Kubernetes clusters (staging/production).
+*   **Monitoring & Logging:**
+    *   **Monitoring:** Prometheus for metrics collection, Grafana for dashboarding and visualization.
+    *   **Logging:** ELK Stack (Elasticsearch, Logstash, Kibana) for centralized log aggregation, searching, and analysis.
+    *   **Alerting:** PagerDuty/OpsGenie integration for critical alerts.
+*   **Security:**
+    *   Virtual Private Cloud (VPC) for network isolation.
+    *   Web Application Firewall (WAF) for protection against common web exploits.
+    *   DDoS protection (AWS Shield).
+    *   Encryption at rest (database encryption, S3 encryption) and in transit (SSL/TLS for all communication paths).
+    *   Regular security audits, penetration testing, and vulnerability scanning.
+    *   Identity and Access Management (IAM) with least privilege principles.
+
+## 3. API Specifications (Example - Partial)
+
+### User Management Service API
+
+**Base URL:** `https://api.forexbot.com/v1/users`
+
+*   **POST /register**
+    *   **Description:** Registers a new user.
+    *   **Request Body:**
+        ```json
+        {
+          "email": "user@example.com",
+          "password": "StrongPassword123!",
+          "firstName": "John",
+          "lastName": "Doe"
+        }
+        ```
+    *   **Response:** `201 Created` with user ID, `400 Bad Request` if email exists or invalid.
+*   **POST /login**
+    *   **Description:** Authenticates a user.
+    *   **Request Body:**
+        ```json
+        {
+          "email": "user@example.com",
+          "password": "StrongPassword123!"
+        }
+        ```
+    *   **Response:** `200 OK` with JWT, `401 Unauthorized` for invalid credentials.
+
+### Strategy Management Service API
+
+**Base URL:** `https://api.forexbot.com/v1/strategies`
+
+*   **POST /**
+    *   **Description:** Creates a new trading strategy.
+    *   **Request Body:**
+        ```json
+        {
+          "name": "My MA Crossover Strategy",
+          "type": "visual", // or "code"
+          "definition": {
+            "entry_conditions": [
+              {"indicator": "MA", "params": {"period": 20, "type": "SMA", "source": "close"}, "operator": "cross_above", "value": {"indicator": "MA", "params": {"period": 50, "type": "SMA", "source": "close"}}},
+              // ... more conditions
+            ],
+            "exit_conditions": [...],
+            "risk_management": {"stop_loss_pct": 0.5, "take_profit_pct": 1.0, "position_sizing": {"type": "fixed_lot", "value": 0.1}}
+          },
+          "instrument": "EURUSD",
+          "timeframe": "H1"
+        }
+        ```
+    *   **Response:** `201 Created` with strategy ID.
+*   **GET /{id}**
+    *   **Description:** Retrieves a specific strategy.
+*   **PUT /{id}/activate**
+    *   **Description:** Activates a strategy for live or paper trading.
+    *   **Request Body:** `{"account_id": "uuid-of-broker-account", "mode": "live"}`
+
+## 4. Database Schemas (Example - Partial)
+
+### `users` table (PostgreSQL)
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    subscription_plan_id UUID REFERENCES subscription_plans(id)
+);
+```
+
+### `strategies` table (PostgreSQL)
+
+```sql
+CREATE TABLE strategies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(50) NOT NULL, -- 'visual' or 'code'
+    definition JSONB NOT NULL, -- Stores nested JSON for visual builder or code for custom strategies
+    instrument VARCHAR(20) NOT NULL,
+    timeframe VARCHAR(10) NOT NULL,
+    status VARCHAR(50) DEFAULT 'draft', -- 'draft', 'backtested', 'active', 'paused'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### Market Data (InfluxDB/TimescaleDB)
+
+*   **Measurement/Table:** `ohlcv_data`
+    *   **Tags:** `symbol` (e.g., EURUSD), `timeframe` (e.g., 1m, 1h)
+    *   **Fields:** `open`, `high`, `low`, `close`, `volume`
+*   **Measurement/Table:** `tick_data`
+    *   **Tags:** `symbol`
+    *   **Fields:** `bid`, `ask`
+
+## 5. Security Considerations
+
+*   **API Security:** Implement OAuth 2.0 (client credentials for service-to-service, JWT for user authentication), rate limiting, IP whitelisting for critical services.
+*   **Data Encryption:** Encrypt sensitive data (broker credentials, PII) at rest using AES-256 and in transit using TLS 1.2+.
+*   **Access Control:** Role-Based Access Control (RBAC) across all services and infrastructure components (e.g., Kubernetes RBAC, AWS IAM policies).
+*   **Vulnerability Management:** Regular code scanning (SAST/DAST), dependency scanning, and third-party penetration testing.
+*   **Auditing:** Comprehensive logging of all actions, especially those related to trades and financial data, for compliance and dispute resolution. Logs will be immutable using techniques like cryptographic hashing or write-once object storage.
+*   **Secrets Management:** Use a dedicated secrets management service (e.g., AWS Secrets Manager, HashiCorp Vault) for API keys, database credentials, and other sensitive configurations.
+
+## 6. Performance & Scalability
+
+*   **Microservices:** Allows independent scaling of individual components based on load.
+*   **Kubernetes Horizontal Pod Autoscaler (HPA):** Automatically scales services based on CPU/memory utilization or custom metrics.
+*   **Load Balancing:** Distribute incoming traffic across multiple instances of services.
+*   **Caching:** Redis for market data, user sessions, and frequently accessed configurations.
+*   **Asynchronous Processing:** Message queues and background jobs ensure that non-critical or time-consuming tasks do not block the main application flow.
+*   **Optimized Database Queries:** Indexing, query optimization, and connection pooling.
+*   **Distributed Backtesting:** Utilize distributed computing frameworks (e.g., Dask, Spark) to parallelize backtesting and optimization tasks across multiple worker nodes.
+
+## 7. Reliability & High Availability
+
+*   **Redundancy:** Deploy services across multiple Availability Zones (AZs) within a region.
+*   **Database Replication:** Primary/replica setup for PostgreSQL, distributed clusters for NoSQL and Time-Series DBs.
+*   **Failover Mechanisms:** Automated failover for critical components (e.g., database, API Gateway).
+*   **Circuit Breakers & Retries:** Implement patterns to gracefully handle external service failures (e.g., broker APIs).
+*   **Disaster Recovery:** Regular backups to off-site storage, documented recovery plans, and periodic DR drills.
+
+## 8. Development Workflow
+
+*   **Methodology:** Agile (Scrum/Kanban) with 2-week sprints.
+*   **Version Control:** Git (GitHub/GitLab).
+*   **Code Review:** Mandatory peer code reviews for all changes.
+*   **Testing:**
+    *   **Unit Tests:** For individual functions and methods (e.g., Pytest, Jest).
+    *   **Integration Tests:** For component interactions.
+    *   **End-to-End Tests:** Simulate user journeys (e.g., Cypress, Selenium).
+    *   **Performance Tests:** Load testing, stress testing.
+*   **Documentation:** API documentation (OpenAPI/Swagger), architectural diagrams, READMEs for each service.
+
+---
