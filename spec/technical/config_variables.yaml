@@ -1,0 +1,440 @@
+```yaml
+# Environment Variables Schema for Forex Trading Bot
+
+# This YAML defines the structure and expected values for environment variables
+# across different deployment environments (development, staging, production).
+# It's intended to be used as a reference for setting up infrastructure and configurations.
+
+# General Application Settings
+APPLICATION:
+  NAME: "ForexTradingBot"
+  ENV:
+    description: "The current deployment environment (e.g., development, staging, production, test)."
+    type: string
+    required: true
+    enum: ["development", "staging", "production", "test"]
+  DEBUG_MODE:
+    description: "Enable or disable detailed debugging logs and features."
+    type: boolean
+    default: false
+
+# Server Configuration
+SERVER:
+  PORT:
+    description: "The port on which the application server will listen."
+    type: integer
+    default: 8080
+    min: 1
+    max: 65535
+  HOST:
+    description: "The host address for the application server."
+    type: string
+    default: "0.0.0.0"
+  CORS_ORIGINS:
+    description: "Comma-separated list of allowed CORS origins. Use '*' for all (for development only)."
+    type: string
+    default: "http://localhost:3000" # Example for development
+  SHUTDOWN_TIMEOUT_SECONDS:
+    description: "Timeout in seconds for graceful server shutdown."
+    type: integer
+    default: 30
+
+# Database Configuration (Relational - PostgreSQL/MySQL)
+DATABASE_RW: # Read-Write database connection
+  TYPE:
+    description: "Type of the relational database."
+    type: string
+    required: true
+    enum: ["postgres", "mysql"]
+  HOST:
+    description: "Database host address."
+    type: string
+    required: true
+  PORT:
+    description: "Database port."
+    type: integer
+    required: true
+    default: 5432 # For PostgreSQL
+  USER:
+    description: "Database username."
+    type: string
+    required: true
+  PASSWORD:
+    description: "Database password."
+    type: string
+    required: true
+    sensitive: true
+  NAME:
+    description: "Database name."
+    type: string
+    required: true
+  SSL_MODE:
+    description: "SSL mode for database connection (e.g., 'require', 'prefer', 'disable')."
+    type: string
+    default: "require"
+  MAX_CONNECTIONS:
+    description: "Maximum number of database connections in the pool."
+    type: integer
+    default: 10
+DATABASE_RO: # Read-Only database connection (optional, for scalability)
+  TYPE:
+    description: "Type of the relational database."
+    type: string
+    enum: ["postgres", "mysql"]
+  HOST:
+    description: "Database host address."
+    type: string
+  PORT:
+    description: "Database port."
+    type: integer
+    default: 5432
+  USER:
+    description: "Database username."
+    type: string
+  PASSWORD:
+    description: "Database password."
+    type: string
+    sensitive: true
+  NAME:
+    description: "Database name."
+    type: string
+  SSL_MODE:
+    description: "SSL mode for database connection (e.g., 'require', 'prefer', 'disable')."
+    type: string
+    default: "require"
+  MAX_CONNECTIONS:
+    description: "Maximum number of database connections in the pool."
+    type: integer
+    default: 10
+
+# Time-Series Database Configuration (InfluxDB/TimescaleDB)
+TIMESERIES_DB:
+  TYPE:
+    description: "Type of the time-series database."
+    type: string
+    enum: ["influxdb", "timescaledb"]
+  HOST:
+    description: "Time-series database host address."
+    type: string
+    required: true
+  PORT:
+    description: "Time-series database port."
+    type: integer
+    required: true
+    default: 8086 # For InfluxDB
+  USER:
+    description: "Time-series database username."
+    type: string
+  PASSWORD:
+    description: "Time-series database password."
+    type: string
+    sensitive: true
+  NAME:
+    description: "Time-series database name (e.g., bucket for InfluxDB)."
+    type: string
+    required: true
+  ORG: # For InfluxDB 2.x
+    description: "Organization name for InfluxDB 2.x."
+    type: string
+
+# NoSQL Database Configuration (MongoDB/Cassandra)
+NOSQL_DB:
+  TYPE:
+    description: "Type of the NoSQL database."
+    type: string
+    enum: ["mongodb", "cassandra"]
+  HOST:
+    description: "NoSQL database host address."
+    type: string
+    required: true
+  PORT:
+    description: "NoSQL database port."
+    type: integer
+    required: true
+    default: 27017 # For MongoDB
+  USER:
+    description: "NoSQL database username."
+    type: string
+  PASSWORD:
+    description: "NoSQL database password."
+    type: string
+    sensitive: true
+  NAME:
+    description: "NoSQL database name."
+    type: string
+    required: true
+
+# Redis Configuration (for Caching and Session Storage)
+REDIS:
+  HOST:
+    description: "Redis host address."
+    type: string
+    required: true
+  PORT:
+    description: "Redis port."
+    type: integer
+    default: 6379
+  PASSWORD:
+    description: "Redis password (if any)."
+    type: string
+    sensitive: true
+  DB_INDEX:
+    description: "Redis database index to use."
+    type: integer
+    default: 0
+
+# Message Queue Configuration (Kafka/RabbitMQ)
+MESSAGE_QUEUE:
+  TYPE:
+    description: "Type of the message queue."
+    type: string
+    required: true
+    enum: ["kafka", "rabbitmq"]
+  BROKERS:
+    description: "Comma-separated list of message queue broker addresses (e.g., 'localhost:9092,localhost:9093')."
+    type: string
+    required: true
+  USER:
+    description: "Message queue username (if authentication is required)."
+    type: string
+  PASSWORD:
+    description: "Message queue password (if authentication is required)."
+    type: string
+    sensitive: true
+  TOPIC_MARKET_DATA:
+    description: "Kafka/RabbitMQ topic for real-time market data."
+    type: string
+    default: "market_data_feed"
+  TOPIC_ORDER_EXECUTION:
+    description: "Kafka/RabbitMQ topic for order execution requests."
+    type: string
+    default: "order_execution_requests"
+  TOPIC_NOTIFICATIONS:
+    description: "Kafka/RabbitMQ topic for user notifications."
+    type: string
+    default: "user_notifications"
+
+# Authentication & Authorization
+AUTH:
+  JWT_SECRET:
+    description: "Secret key for signing JWT tokens. Must be a strong, randomly generated string."
+    type: string
+    required: true
+    sensitive: true
+  JWT_EXPIRATION_SECONDS:
+    description: "Expiration time for JWT tokens in seconds."
+    type: integer
+    default: 3600 # 1 hour
+  API_KEY_HEADER_NAME:
+    description: "HTTP header name for API key authentication where applicable."
+    type: string
+    default: "X-API-KEY"
+  API_KEY_INTERNAL:
+    description: "Internal API key for service-to-service communication."
+    type: string
+    sensitive: true
+
+# External Integrations (Broker Connectors, Market Data Providers)
+BROKER_API_KEYS: # Store securely, potentially via a secrets manager
+  METATRADER_API_URL:
+    description: "URL for the MetaTrader 4/5 API bridge."
+    type: string
+  METATRADER_API_USERNAME:
+    description: "Username for MetaTrader 4/5 API bridge."
+    type: string
+  METATRADER_API_PASSWORD:
+    description: "Password for MetaTrader 4/5 API bridge."
+    type: string
+    sensitive: true
+  CTRADER_CLIENT_ID:
+    description: "cTrader Connect API Client ID."
+    type: string
+  CTRADER_CLIENT_SECRET:
+    description: "cTrader Connect API Client Secret."
+    type: string
+    sensitive: true
+  # Add more specific broker credentials as integrations grow
+
+MARKET_DATA_PROVIDERS:
+  PRIMARY:
+    description: "Primary market data provider to use."
+    type: string
+    required: true
+    enum: ["fxcm", "polygon", "oanda", "custom"]
+  FXCM_API_KEY:
+    description: "API key for FXCM market data."
+    type: string
+    sensitive: true
+  POLYGON_API_KEY:
+    description: "API key for Polygon.io market data."
+    type: string
+    sensitive: true
+  OANDA_API_KEY:
+    description: "API key for Oanda market data."
+    type: string
+    sensitive: true
+  OANDA_ACCOUNT_ID:
+    description: "Oanda account ID for historical data/authentication."
+    type: string
+
+# Cloud Provider Settings (e.g., AWS S3 for Object Storage)
+CLOUD_STORAGE:
+  PROVIDER:
+    description: "Cloud storage provider."
+    type: string
+    enum: ["aws_s3", "gcp_gcs", "azure_blob"]
+  AWS_REGION:
+    description: "AWS region for S3 buckets."
+    type: string
+  AWS_ACCESS_KEY_ID:
+    description: "AWS Access Key ID."
+    type: string
+    sensitive: true
+  AWS_SECRET_ACCESS_KEY:
+    description: "AWS Secret Access Key."
+    type: string
+    sensitive: true
+  S3_BUCKET_MARKET_DATA_ARCHIVE:
+    description: "S3 bucket name for historical market data archives."
+    type: string
+  S3_BUCKET_BACKTEST_REPORTS:
+    description: "S3 bucket name for backtest reports."
+    type: string
+
+# Notification Service Settings
+NOTIFICATION_SERVICE:
+  EMAIL_PROVIDER:
+    description: "Email service provider (e.g., 'sendgrid', 'ses', 'smtp')."
+    type: string
+    enum: ["sendgrid", "ses", "smtp"]
+  SENDGRID_API_KEY:
+    description: "SendGrid API key."
+    type: string
+    sensitive: true
+  SES_AWS_REGION:
+    description: "AWS region for SES."
+    type: string
+  SES_FROM_EMAIL:
+    description: "Sender email address for SES."
+    type: string
+  SMS_PROVIDER:
+    description: "SMS service provider (e.g., 'twilio')."
+    type: string
+    enum: ["twilio"]
+  TWILIO_ACCOUNT_SID:
+    description: "Twilio Account SID."
+    type: string
+    sensitive: true
+  TWILIO_AUTH_TOKEN:
+    description: "Twilio Auth Token."
+    type: string
+    sensitive: true
+  TWILIO_FROM_PHONE_NUMBER:
+    description: "Twilio verified sending phone number."
+    type: string
+
+# Logging Configuration
+LOGGING:
+  LEVEL:
+    description: "Minimum logging level (e.g., 'debug', 'info', 'warn', 'error')."
+    type: string
+    default: "info"
+    enum: ["debug", "info", "warn", "error"]
+  DESTINATION:
+    description: "Logging destination (e.g., 'stdout', 'file', 'elk')."
+    type: string
+    default: "stdout"
+  ELK_HOST:
+    description: "Host for ELK stack (Elasticsearch/Logstash/Kibana)."
+    type: string
+  ELK_PORT:
+    description: "Port for ELK stack."
+    type: integer
+    default: 5044 # Logstash default
+  LOG_FILE_PATH:
+    description: "Path to the log file if logging to file."
+    type: string
+    default: "/var/log/forex_bot/app.log"
+
+# Monitoring Configuration (Prometheus/Grafana)
+MONITORING:
+  PROMETHEUS_ENABLED:
+    description: "Enable Prometheus metrics exposition."
+    type: boolean
+    default: true
+  PROMETHEUS_METRICS_PATH:
+    description: "Path where Prometheus metrics are exposed."
+    type: string
+    default: "/metrics"
+  GRAFANA_DASHBOARD_URL:
+    description: "URL to the Grafana dashboard for quick access."
+    type: string
+
+# Feature Toggles (Optional, for staged rollouts)
+FEATURE_TOGGLES:
+  AI_INTEGRATION_ENABLED:
+    description: "Enable/disable AI/ML features."
+    type: boolean
+    default: false
+  STRATEGY_MARKETPLACE_ENABLED:
+    description: "Enable/disable strategy marketplace."
+    type: boolean
+    default: false
+  SOCIAL_TRADING_ENABLED:
+    description: "Enable/disable social/copy trading."
+    type: boolean
+    default: false
+
+# Rate Limiting Settings
+RATE_LIMITING:
+  API_GLOBAL_MAX_REQUESTS:
+    description: "Maximum API requests per window for all users per IP (e.g., per minute)."
+    type: integer
+    default: 600
+  API_GLOBAL_WINDOW_SECONDS:
+    description: "Time window in seconds for global API rate limiting."
+    type: integer
+    default: 60
+  BROKER_API_PER_USER_MAX_REQUESTS:
+    description: "Maximum requests to broker API per user per window."
+    type: integer
+    default: 100
+  BROKER_API_PER_USER_WINDOW_SECONDS:
+    description: "Time window in seconds for broker API rate limiting per user."
+    type: integer
+    default: 5
+
+# Security Settings
+SECURITY:
+  HTTPS_REDIRECT_ENABLED:
+    description: "Redirect all HTTP traffic to HTTPS."
+    type: boolean
+    default: true
+  HSTS_MAX_AGE_SECONDS:
+    description: "HTTP Strict Transport Security (HSTS) max-age in seconds."
+    type: integer
+    default: 31536000 # 1 year
+  CSRF_TOKEN_SECRET:
+    description: "Secret for CSRF token generation."
+    type: string
+    sensitive: true
+  WEBHOOK_SECRET:
+    description: "Secret used to sign webhooks for incoming notifications (e.g., from brokers)."
+    type: string
+    sensitive: true
+
+# Backtesting & Optimization Settings
+BACKTESTING:
+  MAX_HISTORY_DAYS:
+    description: "Maximum number of historical days available for backtesting."
+    type: integer
+    default: 1825 # 5 years
+  MAX_CONCURRENT_RUNS:
+    description: "Maximum number of concurrent backtesting or optimization runs."
+    type: integer
+    default: 5
+  OPTIMIZATION_ENABLED_ALGORITHMS:
+    description: "Comma-separated list of enabled optimization algorithms (e.g., 'genetic,brute_force')."
+    type: string
+    default: "genetic"
+```
