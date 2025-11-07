@@ -1,0 +1,664 @@
+```yaml
+entities:
+  - name: User
+    attributes:
+      - name: userId
+        type: UUID
+        description: Unique identifier for the user.
+        primary_key: true
+      - name: email
+        type: String
+        description: User's email address.
+        unique: true
+      - name: passwordHash
+        type: String
+        description: Hashed password for user authentication.
+      - name: firstName
+        type: String
+      - name: lastName
+        type: String
+      - name: registrationDate
+        type: Timestamp
+      - name: lastLoginDate
+        type: Timestamp
+      - name: userRole
+        type: Enum
+        values: [ 'Novice', 'Intermediate', 'Experienced', 'FundManager' ]
+        description: Role of the user, influencing available features and permissions.
+      - name: preferredLanguage
+        type: String
+      - name: timezone
+        type: String
+    relationships:
+      - type: has_many
+        target_entity: BrokerageAccount
+        description: A user can connect multiple brokerage accounts.
+      - type: has_many
+        target_entity: Strategy
+        description: A user can create and own multiple strategies.
+      - type: has_many
+        target_entity: NotificationSetting
+        description: A user has multiple notification settings.
+      - type: has_many
+        target_entity: Report
+        description: A user generates multiple reports.
+      - type: has_many
+        target_entity: Order
+        description: A user can place multiple orders via their strategies.
+      - type: has_many
+        target_entity: Position
+        description: A user can have multiple open positions.
+      - type: has_many
+        target_entity: BacktestResult
+        description: A user can run multiple backtests.
+      - type: has_many
+        target_entity: StrategyPurchase
+        description: A user can purchase multiple strategies from the marketplace.
+      - type: owns_many
+        target_entity: AccountSettings
+        description: A user owns one set of account-level settings.
+
+  - name: AccountSettings
+    attributes:
+      - name: accountSettingsId
+        type: UUID
+        description: Unique identifier for account settings.
+        primary_key: true
+      - name: userId
+        type: UUID
+        description: Foreign key to User.
+        foreign_key: true
+      - name: maxDailyLossPercentage
+        type: DECIMAL
+        description: Global maximum daily loss percentage for the user's combined accounts.
+      - name: maxOpenPositions
+        type: INTEGER
+        description: Global maximum number of open positions across all strategies.
+      - name: globalStopLossPercentage
+        type: DECIMAL
+        description: Global stop loss percentage for the entire account.
+      - name: globalTakeProfitPercentage
+        type: DECIMAL
+        description: Global take profit percentage for the entire account.
+      - name: emergencyStopEnabled
+        type: BOOLEAN
+        default: false
+        description: Flag to stop all active trading immediately.
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: Account settings belong to a user.
+
+  - name: BrokerageAccount
+    attributes:
+      - name: accountId
+        type: UUID
+        description: Unique identifier for the brokerage account connection.
+        primary_key: true
+      - name: userId
+        type: UUID
+        description: Foreign key to User.
+        foreign_key: true
+      - name: brokerName
+        type: String
+        description: Name of the brokerage (e.g., OANDA, FXCM, MT4).
+      - name: accountIdentifier
+        type: String
+        description: Account number or identifier at the brokerage.
+      - name: connectionStatus
+        type: Enum
+        values: [ 'Connected', 'Disconnected', 'Error' ]
+      - name: apiKey
+        type: String
+        description: Encrypted API key or token for brokerage access.
+      - name: accountType
+        type: Enum
+        values: [ 'Live', 'Demo', 'Paper' ]
+      - name: currency
+        type: String
+      - name: initialBalance
+        type: DECIMAL
+      - name: currentBalance
+        type: DECIMAL
+      - name: equity
+        type: DECIMAL
+      - name: lastUpdated
+        type: Timestamp
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: A brokerage account belongs to a user.
+      - type: has_many
+        target_entity: StrategyInstance
+        description: A brokerage account can have multiple strategy instances running on it.
+
+  - name: Strategy
+    attributes:
+      - name: strategyId
+        type: UUID
+        description: Unique identifier for the strategy.
+        primary_key: true
+      - name: userId
+        type: UUID
+        description: Foreign key to User (owner of the strategy).
+        foreign_key: true
+      - name: strategyName
+        type: String
+      - name: description
+        type: Text
+      - name: strategyType
+        type: Enum
+        values: [ 'Visual', 'Code', 'Prebuilt', 'Marketplace' ]
+      - name: strategyDefinition
+        type: JSON
+        description: JSON representation of visual blocks or code snippet.
+      - name: creationDate
+        type: Timestamp
+      - name: lastModifiedDate
+        type: Timestamp
+      - name: isPublic
+        type: BOOLEAN
+        default: false
+        description: If true, potentially available for marketplace/sharing.
+      - name: language
+        type: String
+        description: Scripting language used if strategyType is 'Code'.
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: A strategy is owned by a user.
+      - type: has_many
+        target_entity: StrategyInstance
+        description: A strategy can have multiple instances running across different accounts.
+      - type: has_many
+        target_entity: BacktestResult
+        description: A strategy can generate multiple backtest results.
+      - type: has_many
+        target_entity: StrategyPurchase
+        description: A strategy can be purchased multiple times from the marketplace.
+
+  - name: StrategyInstance
+    attributes:
+      - name: instanceId
+        type: UUID
+        description: Unique identifier for a running instance of a strategy.
+        primary_key: true
+      - name: strategyId
+        type: UUID
+        description: Foreign key to Strategy.
+        foreign_key: true
+      - name: accountId
+        type: UUID
+        description: Foreign key to BrokerageAccount on which the strategy is running.
+        foreign_key: true
+      - name: status
+        type: Enum
+        values: [ 'Running', 'Paused', 'Stopped', 'Error' ]
+      - name: creationDate
+        type: Timestamp
+      - name: lastUpdatedDate
+        type: Timestamp
+      - name: tradingSymbol
+        type: String
+        description: Currency pair (e.g., EURUSD) the strategy instance is set to trade.
+      - name: timeframe
+        type: String
+        description: Timeframe (e.g., H1, M5) for strategy execution.
+      - name: entryConditions
+        type: JSON
+        description: Specific entry conditions for this instance (override or derived from strategy definition).
+      - name: exitConditions
+        type: JSON
+        description: Specific exit conditions for this instance.
+      - name: stopLossLevel
+        type: DECIMAL
+        description: Stop loss level (could be percentage, pips, or absolute price).
+      - name: takeProfitLevel
+        type: DECIMAL
+        description: Take profit level.
+      - name: trailingStopEnabled
+        type: BOOLEAN
+      - name: positionSizingMethod
+        type: Enum
+        values: [ 'FixedLot', 'EquityPercentage', 'RiskBased' ]
+      - name: positionSizingValue
+        type: DECIMAL
+        description: Value corresponding to the position sizing method (e.g., 0.1 for fixed lot, 1 for 1% equity).
+      - name: isActive
+        type: BOOLEAN
+        default: true
+        description: Flag indicating if the instance is currently active and attempting trades.
+    relationships:
+      - type: belongs_to
+        target_entity: Strategy
+        description: A strategy instance is based on a strategy.
+      - type: belongs_to
+        target_entity: BrokerageAccount
+        description: A strategy instance runs on a specific brokerage account.
+      - type: has_many
+        target_entity: Order
+        description: A strategy instance places multiple orders.
+      - type: has_many
+        target_entity: Position
+        description: A strategy instance manages multiple positions.
+
+  - name: Order
+    attributes:
+      - name: orderId
+        type: UUID
+        description: Unique internal identifier for the order.
+        primary_key: true
+      - name: strategyInstanceId
+        type: UUID
+        description: Foreign key to StrategyInstance.
+        nullable: true # For manual orders or copy-trading, not always strategy-driven
+        foreign_key: true
+      - name: accountId
+        type: UUID
+        description: Foreign key to BrokerageAccount.
+        foreign_key: true
+      - name: brokerageOrderId
+        type: String
+        description: Order ID provided by the brokerage.
+        unique: true
+      - name: symbol
+        type: String
+        description: Trading instrument (e.g., EURUSD).
+      - name: orderType
+        type: Enum
+        values: [ 'Market', 'Limit', 'Stop', 'TrailingStop' ]
+      - name: side
+        type: Enum
+        values: [ 'Buy', 'Sell' ]
+      - name: volume
+        type: DECIMAL
+        description: Lot size (e.g., 0.1, 1.0).
+      - name: price
+        type: DECIMAL
+        description: Limit or Stop price, or executed price if Market.
+      - name: executedPrice
+        type: DECIMAL
+        nullable: true
+      - name: status
+        type: Enum
+        values: [ 'Pending', 'Open', 'Filled', 'Canceled', 'Rejected', 'PartialFill', 'Expired' ]
+      - name: placedAt
+        type: Timestamp
+      - name: filledAt
+        type: Timestamp
+        nullable: true
+      - name: expiration
+        type: Timestamp
+        nullable: true
+      - name: stopLoss
+        type: DECIMAL
+        nullable: true
+      - name: takeProfit
+        type: DECIMAL
+        nullable: true
+      - name: pnl
+        type: DECIMAL
+        nullable: true
+        description: Profit and Loss for this order, once closed.
+    relationships:
+      - type: belongs_to
+        target_entity: StrategyInstance
+        description: An order is placed by a strategy instance (optional).
+      - type: belongs_to
+        target_entity: BrokerageAccount
+        description: An order is placed for a specific brokerage account.
+
+  - name: Position
+    attributes:
+      - name: positionId
+        type: UUID
+        description: Unique identifier for an open position.
+        primary_key: true
+      - name: accountId
+        type: UUID
+        description: Foreign key to BrokerageAccount.
+        foreign_key: true
+      - name: strategyInstanceId
+        type: UUID
+        description: Foreign key to StrategyInstance.
+        nullable: true
+        foreign_key: true
+      - name: symbol
+        type: String
+      - name: side
+        type: Enum
+        values: [ 'Long', 'Short' ]
+      - name: volume
+        type: DECIMAL
+      - name: entryPrice
+        type: DECIMAL
+      - name: currentTime
+        type: TIMESTAMP
+        description: Last update time of the position.
+      - name: currentPrice
+        type: DECIMAL
+        description: Current market price of the symbol.
+      - name: currentProfitLoss
+        type: DECIMAL
+        description: Unrealized P&L.
+      - name: openTime
+        type: Timestamp
+      - name: closeTime
+        type: Timestamp
+        nullable: true
+      - name: closePrice
+        type: DECIMAL
+        nullable: true
+      - name: realizedProfitLoss
+        type: DECIMAL
+        nullable: true
+      - name: status
+        type: Enum
+        values: [ 'Open', 'Closed' ]
+      - name: stopLoss
+        type: DECIMAL
+        nullable: true
+      - name: takeProfit
+        type: DECIMAL
+        nullable: true
+    relationships:
+      - type: belongs_to
+        target_entity: StrategyInstance
+        description: A position is managed by a strategy instance (optional).
+      - type: belongs_to
+        target_entity: BrokerageAccount
+        description: A position belongs to a specific brokerage account.
+
+  - name: HistoricalMarketData
+    attributes:
+      - name: dataId
+        type: UUID
+        description: Unique identifier for the data point.
+        primary_key: true
+      - name: symbol
+        type: String
+      - name: timeframe
+        type: String
+      - name: timestamp
+        type: Timestamp
+      - name: open
+        type: DECIMAL
+      - name: high
+        type: DECIMAL
+      - name: low
+        type: DECIMAL
+      - name: close
+        type: DECIMAL
+      - name: tickData
+        type: JSON # Or a separate entity for high-frequency data
+        nullable: true
+    relationships:
+      # This entity typically stands alone for data storage, not directly related to other transactional entities via FKs.
+      # Accessed by BacktestingEngine and LiveTradingModule.
+
+  - name: BacktestResult
+    attributes:
+      - name: resultId
+        type: UUID
+        description: Unique identifier for the backtest result.
+        primary_key: true
+      - name: userId
+        type: UUID
+        description: Foreign key to User who initiated the backtest.
+        foreign_key: true
+      - name: strategyId
+        type: UUID
+        description: Foreign key to Strategy that was backtested.
+        foreign_key: true
+      - name: symbol
+        type: String
+      - name: timeframe
+        type: String
+      - name: startDate
+        type: Timestamp
+      - name: endDate
+        type: Timestamp
+      - name: parametersUsed
+        type: JSON
+        description: Parameters configured for this specific backtest run.
+      - name: equityCurveData
+        type: JSON
+        description: Array of equity values over time.
+      - name: drawdownData
+        type: JSON
+        description: Array of drawdown percentages over time.
+      - name: totalProfit
+        type: DECIMAL
+      - name: netProfitPercentage
+        type: DECIMAL
+      - name: maxDrawdown
+        type: DECIMAL
+      - name: profitFactor
+        type: DECIMAL
+      - name: totalTrades
+        type: INTEGER
+      - name: winningTrades
+        type: INTEGER
+      - name: losingTrades
+        type: INTEGER
+      - name: metrics
+        type: JSON
+        description: Other detailed performance metrics.
+      - name: reportGeneratedAt
+        type: Timestamp
+      - name: reportFileUrl
+        type: String
+        nullable: true
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: A backtest result is owned by a user.
+      - type: belongs_to
+        target_entity: Strategy
+        description: A backtest result is for a specific strategy.
+
+  - name: NotificationSetting
+    attributes:
+      - name: settingId
+        type: UUID
+        description: Unique identifier for the notification setting.
+        primary_key: true
+      - name: userId
+        type: UUID
+        description: Foreign key to User.
+        foreign_key: true
+      - name: eventType
+        type: Enum
+        values: [ 'TradeExecution', 'StrategyStartStop', 'DrawdownLimitReached', 'AccountBalanceChange', 'SystemError', 'DailyPerformanceSummary' ]
+      - name: channel
+        type: Enum
+        values: [ 'Email', 'SMS', 'PushNotification', 'InApp' ]
+      - name: isEnabled
+        type: BOOLEAN
+        default: true
+      - name: recipient
+        type: String
+        description: Email address, phone number, or device token.
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: Notification settings belong to a user.
+
+  - name: Report
+    attributes:
+      - name: reportId
+        type: UUID
+        description: Unique identifier for the generated report.
+        primary_key: true
+      - name: userId
+        type: UUID
+        description: Foreign key to User.
+        foreign_key: true
+      - name: reportType
+        type: Enum
+        values: [ 'PerformanceSummary', 'TradeJournal', 'Custom' ]
+      - name: startDate
+        type: Timestamp
+      - name: endDate
+        type: Timestamp
+      - name: generatedAt
+        type: Timestamp
+      - name: content
+        type: JSON # Or URL to stored PDF/CSV
+      - name: status
+        type: Enum
+        values: [ 'Generated', 'Pending', 'Failed' ]
+      - name: fileFormat
+        type: Enum
+        values: [ 'PDF', 'CSV', 'JSON' ]
+      - name: fileUrl
+        type: String
+        nullable: true
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: A report is generated for a user.
+
+  - name: MarketplaceStrategy
+    attributes:
+      - name: marketplaceStrategyId
+        type: UUID
+        description: Unique ID for a strategy listed on the marketplace.
+        primary_key: true
+      - name: strategyId
+        type: UUID
+        description: Foreign key to the original Strategy entity.
+        foreign_key: true
+      - name: sellerUserId
+        type: UUID
+        description: Foreign key to User who is selling the strategy.
+        foreign_key: true
+      - name: price
+        type: DECIMAL
+      - name: licenseType
+        type: Enum
+        values: [ 'OneTimePurchase', 'Subscription', 'Rental' ]
+      - name: listingDate
+        type: Timestamp
+      - name: averageRating
+        type: DECIMAL
+      - name: numReviews
+        type: INTEGER
+      - name: shortDescription
+        type: String
+      - name: performanceMetricsSnapshot
+        type: JSON
+        description: Key performance metrics of the strategy (e.g., from backtests).
+      - name: isActive
+        type: BOOLEAN
+        default: true
+    relationships:
+      - type: belongs_to
+        target_entity: Strategy
+        description: A marketplace strategy is based on an existing strategy.
+      - type: belongs_to
+        target_entity: User
+        description: A marketplace strategy is sold by a user.
+      - type: has_many
+        target_entity: StrategyPurchase
+        description: A marketplace strategy can have multiple purchases.
+      - type: has_many
+        target_entity: StrategyReview
+        description: A marketplace strategy can have multiple reviews.
+
+  - name: StrategyPurchase
+    attributes:
+      - name: purchaseId
+        type: UUID
+        description: Unique ID for a strategy purchase.
+        primary_key: true
+      - name: buyerUserId
+        type: UUID
+        description: Foreign key to User who bought the strategy.
+        foreign_key: true
+      - name: marketplaceStrategyId
+        type: UUID
+        description: Foreign key to MarketplaceStrategy.
+        foreign_key: true
+      - name: purchaseDate
+        type: Timestamp
+      - name: amountPaid
+        type: DECIMAL
+      - name: licenseTermEndDate
+        type: Timestamp
+        nullable: true
+        description: For subscription/rental licenses.
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        description: A purchase is made by a user.
+      - type: belongs_to
+        target_entity: MarketplaceStrategy
+        description: A purchase is for a specific marketplace strategy.
+
+  - name: StrategyReview
+    attributes:
+      - name: reviewId
+        type: UUID
+        primary_key: true
+      - name: marketplaceStrategyId
+        type: UUID
+        foreign_key: true
+      - name: userId
+        type: UUID
+        foreign_key: true
+      - name: rating
+        type: INTEGER
+        description: 1-5 star rating.
+      - name: reviewText
+        type: Text
+        nullable: true
+      - name: reviewDate
+        type: Timestamp
+    relationships:
+      - type: belongs_to
+        target_entity: MarketplaceStrategy
+        description: A review is for a specific marketplace strategy.
+      - type: belongs_to
+        target_entity: User
+        description: A review is written by a user.
+
+  - name: CopyTradingSubscription
+    attributes:
+      - name: subscriptionId
+        type: UUID
+        primary_key: true
+      - name: subscriberUserId
+        type: UUID
+        foreign_key: true
+      - name: providerUserId
+        type: UUID
+        foreign_key: true
+      - name: providerStrategyInstanceId
+        type: UUID
+        description: The specific strategy instance being copied.
+        foreign_key: true
+      - name: status
+        type: Enum
+        values: [ 'Active', 'Paused', 'Ended' ]
+      - name: subscriptionDate
+        type: Timestamp
+      - name: scalingFactor
+        type: DECIMAL
+        description: Multiplier for copying trade volumes (e.g., 0.5 for half size, 2 for double size).
+      - name: maxDrawdownLimit
+        type: DECIMAL
+        nullable: true
+        description: Max drawdown percentage for the subscriber's account before pausing.
+    relationships:
+      - type: belongs_to
+        target_entity: User
+        alias: SubscriberUser
+      - type: belongs_to
+        target_entity: User
+        alias: ProviderUser
+      - type: belongs_to
+        target_entity: StrategyInstance
+        description: Subscribing to a specific strategy instance of a provider.
+
+```
